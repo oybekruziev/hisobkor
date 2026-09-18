@@ -1,0 +1,65 @@
+import http from 'node:http';
+import {readFile} from 'node:fs/promises';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import path from 'node:path';
+import {randomBytes,randomUUID,scrypt as scryptCallback,timingSafeEqual} from 'node:crypto';
+import {promisify} from 'node:util';
+import {analyzeFile,apiError} from './ai-service.mjs';
+import {loadConfig} from './server-config.mjs';
+import {createStorage,MAX_FILE_BYTES,MAX_WORKSPACE_BYTES,validFileId,validateFile} from './server-storage.mjs';
+
+const scrypt=promisify(scryptCallback),publicRoot=fileURLToPath(new URL('./public/',import.meta.url));
+const staticFiles=new Map([['/landing.html',['landing.html','text/html; charset=utf-8']],['/landing.css',['landing.css','text/css; charset=utf-8']],['/',['index.html','text/html; charset=utf-8']],['/index.html',['index.html','text/html; charset=utf-8']],['/app.js',['app.js','application/javascript; charset=utf-8']],['/style.css',['style.css','text/css; charset=utf-8']],['/favicon.svg',['favicon.svg','image/svg+xml']]]);
+const sessionCookie='__Host-mezon_session';
+const securityHeaders={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Permissions-Policy':'camera=(), microphone=(), geolocation=()','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; frame-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"};
+const json=(res,status,data,headers={})=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',...securityHeaders,...headers});res.end(JSON.stringify(data));};
+const errorJson=(res,status,message)=>json(res,status,{error:message});
+async function readBody(req,limit){const declared=Number(req.headers['content-length']);if(Number.isFinite(declared)&&declared>limit){const e=new Error('So‘rov hajmi juda katta.');e.status=413;throw e;}let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>limit){const e=new Error('So‘rov hajmi juda katta.');e.status=413;throw e;}chunks.push(chunk);}return Buffer.concat(chunks);}
+async function readJSON(req,limit=MAX_WORKSPACE_BYTES){if(!req.headers['content-type']?.toLowerCase().startsWith('application/json')){const e=new Error('JSON so‘rov kutilgan.');e.status=415;throw e;}try{return JSON.parse((await readBody(req,limit)).toString('utf8'));}catch(error){if(error.status)throw error;const e=new Error('So‘rov o‘qilmadi.');e.status=400;throw e;}}
+function cookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(part=>part.trim().split(/=(.*)/s).slice(0,2)).filter(pair=>pair.length===2));}
+
+export async function createApp(options={}){
+ const config=options.config||loadConfig(options.env),environment=options.env||process.env;
+ let apiKey=config.production?config.openAIKey:environment.OPENAI_API_KEY||'';
+ if(config.production)config.openAIKey=undefined;
+ const storage=config.production?await createStorage(config.dataDir):null,sessions=new Map(),loginAttempts=new Map(),sessionLifetime=12*60*60*1000;
+ let analyzing=false,passwordSalt,passwordHash;
+ if(config.production){passwordSalt=randomBytes(16);passwordHash=Buffer.from(await scrypt(config.adminPassword,passwordSalt,64));config.adminPassword=undefined;}
+ const clientAddress=req=>config.trustProxy?(String(req.headers['x-forwarded-for']||'').split(',')[0].trim()||req.socket.remoteAddress||'unknown'):(req.socket.remoteAddress||'unknown');
+ const pruneLoginAttempts=now=>{for(const[address,times]of loginAttempts){const recent=times.filter(time=>time>now-15*60*1000);if(recent.length)loginAttempts.set(address,recent);else loginAttempts.delete(address);}while(loginAttempts.size>=10_000)loginAttempts.delete(loginAttempts.keys().next().value);};
+ const authenticated=req=>{if(!config.production)return true;const token=cookies(req)[sessionCookie],expires=token&&sessions.get(token);if(!expires||expires<Date.now()){if(token)sessions.delete(token);return false;}sessions.set(token,Date.now()+sessionLifetime);return true;};
+ const validOrigin=req=>{const host=String(req.headers.host||'').toLowerCase();if(config.production&&host!==config.appHost.toLowerCase())return false;if(!config.production&&host!==`127.0.0.1:${config.port}`&&host!==`localhost:${config.port}`)return false;const origin=req.headers.origin;if(!origin)return req.method==='GET'||req.method==='HEAD';if(config.production)return origin===config.appOrigin;return origin===`http://127.0.0.1:${config.port}`||origin===`http://localhost:${config.port}`;};
+ const mutationAllowed=req=>req.headers['x-mezon-request']==='1'&&validOrigin(req);
+ const handler=async(req,res)=>{const requestId=randomUUID();res.setHeader('X-Request-Id',requestId);try{
+  const url=new URL(req.url||'/','http://local');
+  if(url.pathname==='/healthz'){if(req.method!=='GET')return errorJson(res,405,'Usul qo‘llab-quvvatlanmaydi.');return json(res,200,{ok:true});}
+  if(!validOrigin(req))return errorJson(res,403,'Ruxsat berilmagan manba.');
+  if(url.pathname.startsWith('/api/')){
+   if(req.method==='GET'&&url.pathname==='/api/session')return json(res,200,{authenticated:authenticated(req),mode:config.production?'production':'local',storage:config.production?'server':'browser'});
+   if(req.method==='POST'&&url.pathname==='/api/login'){
+    if(!config.production)return json(res,200,{authenticated:true,mode:'local',storage:'browser'});
+    if(!mutationAllowed(req))return errorJson(res,403,'Ruxsat berilmagan so‘rov.');
+    const address=clientAddress(req),now=Date.now();pruneLoginAttempts(now);const attempts=loginAttempts.get(address)||[];
+    if(attempts.length>=5)return errorJson(res,429,'Juda ko‘p urinish. 15 daqiqadan keyin qayta urinib ko‘ring.');
+    const body=await readJSON(req,8*1024);if(!body||typeof body!=='object'||Array.isArray(body))return errorJson(res,400,'Login so‘rovi yaroqsiz.');attempts.push(now);loginAttempts.set(address,attempts);const supplied=typeof body.password==='string'&&body.password.length<=1024?body.password:'',candidate=Buffer.from(await scrypt(supplied,passwordSalt,64)),username=typeof body.username==='string'?body.username:'';
+    if(username!==config.adminUsername||!timingSafeEqual(candidate,passwordHash))return errorJson(res,401,'Login yoki parol noto‘g‘ri.');
+    loginAttempts.delete(address);for(const[token,expires]of sessions)if(expires<now)sessions.delete(token);while(sessions.size>=100)sessions.delete(sessions.keys().next().value);const token=randomBytes(32).toString('base64url');sessions.set(token,now+sessionLifetime);
+    return json(res,200,{authenticated:true,mode:'production',storage:'server'},{'Set-Cookie':`${sessionCookie}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${sessionLifetime/1000}`});
+   }
+   if(req.method==='POST'&&url.pathname==='/api/logout'){if(!mutationAllowed(req))return errorJson(res,403,'Ruxsat berilmagan so‘rov.');const token=cookies(req)[sessionCookie];if(token)sessions.delete(token);return json(res,200,{ok:true},{'Set-Cookie':`${sessionCookie}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`});}
+   if(!authenticated(req))return errorJson(res,401,'Kirish talab qilinadi.');
+   if(req.method==='GET'&&url.pathname==='/api/workspace'&&config.production)return json(res,200,storage.getWorkspace());
+   if(req.method==='PUT'&&url.pathname==='/api/workspace'&&config.production){if(!mutationAllowed(req))return errorJson(res,403,'Ruxsat berilmagan so‘rov.');const body=await readJSON(req,MAX_WORKSPACE_BYTES+1024);if(!body||typeof body!=='object'||Array.isArray(body)||!Number.isSafeInteger(body.revision)||body.revision<0||!('state'in body))return errorJson(res,400,'Revision yoki state yaroqsiz.');const result=await storage.putWorkspace(body.state,body.revision);return result.conflict?json(res,409,{error:'Ish joyi boshqa oynada o‘zgargan.',revision:result.revision}):json(res,200,result);}
+   const fileMatch=url.pathname.match(/^\/api\/files\/([^/]+)$/);
+   if(fileMatch&&config.production){let id;try{id=decodeURIComponent(fileMatch[1]);}catch{return errorJson(res,400,'Fayl identifikatori yaroqsiz.');}if(!validFileId(id))return errorJson(res,400,'Fayl identifikatori yaroqsiz.');if(req.method==='PUT'){if(!mutationAllowed(req))return errorJson(res,403,'Ruxsat berilmagan so‘rov.');const bytes=await readBody(req,MAX_FILE_BYTES);const contentType=validateFile(bytes,req.headers['content-type']),result=await storage.putFile(id,bytes,contentType);if(result.conflict)return errorJson(res,409,'Bu fayl identifikatori boshqa fayl uchun ishlatilgan.');return json(res,200,{ok:true});}if(req.method==='GET'){const file=await storage.getFile(id);if(!file)return errorJson(res,404,'Fayl topilmadi.');res.writeHead(200,{'Content-Type':file.metadata.contentType,'Content-Length':file.bytes.length,'Content-Disposition':`attachment; filename="document.${file.metadata.ext}"`,'Cache-Control':'private, no-store',...securityHeaders});return res.end(file.bytes);}}
+   if(req.method==='GET'&&url.pathname==='/api/ai/status')return json(res,200,{connected:!!apiKey,...(config.production&&{managed:true}),model:config.model});
+   if(req.method==='POST'&&(url.pathname==='/api/ai/connect'||url.pathname==='/api/ai/disconnect')){if(!mutationAllowed(req))return errorJson(res,403,'Ruxsat berilmagan so‘rov.');if(config.production)return errorJson(res,403,'AI kaliti server boshqaruvida.');if(analyzing)return errorJson(res,409,'Joriy tekshiruv tugashini kuting.');if(url.pathname.endsWith('/disconnect')){apiKey='';return json(res,200,{connected:false,model:config.model});}const body=await readJSON(req,8*1024),key=String(body.key||'').trim();if(key.length<20||key.length>512)return errorJson(res,400,'OpenAI API kalitini kiriting.');let response;try{response=await(options.fetcher||fetch)('https://api.openai.com/v1/models',{headers:{Authorization:`Bearer ${key}`},signal:AbortSignal.timeout(20_000)});}catch{return errorJson(res,502,'OpenAI bilan bog‘lanib bo‘lmadi. Internetni tekshiring.');}if(!response.ok)return errorJson(res,400,apiError(response.status));apiKey=key;return json(res,200,{connected:true,model:config.model});}
+   if(req.method==='POST'&&url.pathname==='/api/ai/analyze'){if(!mutationAllowed(req))return errorJson(res,403,'Ruxsat berilmagan so‘rov.');if(!apiKey)return errorJson(res,401,config.production?'OPENAI_API_KEY serverda sozlanmagan.':'Avval AI ulanishida OpenAI API kalitini kiriting.');if(analyzing)return errorJson(res,409,'Boshqa tekshiruv davom etmoqda. Keyinroq qayta urinib ko‘ring.');analyzing=true;try{const body=await readJSON(req,36_000_000),result=await analyzeFile(body,{key:apiKey,model:config.model,fetcher:options.fetcher||fetch});return json(res,200,{result});}finally{analyzing=false;}}
+   return errorJson(res,404,'Manzil topilmadi.');
+  }
+  if(req.method!=='GET'&&req.method!=='HEAD')return errorJson(res,405,'Usul qo‘llab-quvvatlanmaydi.');const item=staticFiles.get(url.pathname);if(!item)return errorJson(res,404,'Manzil topilmadi.');const[filename,contentType]=item,body=await readFile(path.join(publicRoot,filename));res.writeHead(200,{'Content-Type':contentType,'Content-Length':body.length,'Cache-Control':filename==='index.html'?'no-store':'public, max-age=0, must-revalidate',...securityHeaders});return res.end(req.method==='HEAD'?undefined:body);
+ }catch(error){const expected=error.status||/^(Ish joyi|companies|docs|activity|closed|Profil|Kompaniya|Hujjat|Faollik|Yopilgan|Fayl|PDF|PNG|JPEG|Excel|CSV|AI |OpenAI |So‘rov)/.test(error.message||''),status=error.status||(error.code==='ENOENT'?404:expected?400:500);if(status>=500)console.error(`[${requestId}]`,error);const message=status<500&&error.message?error.message:'Server xatosi.';if(!res.headersSent)return errorJson(res,status,message);res.destroy();}};
+ return{config,handler,close:()=>sessions.clear()};
+}
+export async function startServer(env=process.env){const app=await createApp({env}),server=http.createServer(app.handler);server.requestTimeout=200_000;server.headersTimeout=15_000;server.keepAliveTimeout=5_000;server.maxRequestsPerSocket=100;await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(app.config.port,app.config.host,resolve);});console.log(`Hisobkor.uz: ${app.config.production?app.config.appOrigin:`http://${app.config.host}:${app.config.port}`}`);let stopping=false;const shutdown=signal=>{if(stopping)return;stopping=true;console.log(`${signal}: server yopilmoqda...`);server.closeIdleConnections?.();server.close(error=>{app.close();process.exit(error?1:0);});setTimeout(()=>{server.closeAllConnections?.();process.exit(1);},10_000).unref();};process.once('SIGTERM',()=>shutdown('SIGTERM'));process.once('SIGINT',()=>shutdown('SIGINT'));return server;}
+if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href)startServer().catch(error=>{console.error(`Server ishga tushmadi: ${error.message}`);process.exit(1);});

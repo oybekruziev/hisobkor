@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log*
+.git
+.env
+data
+tests
+*.md
+public/*.map
+
+.env.*
+release
+archive

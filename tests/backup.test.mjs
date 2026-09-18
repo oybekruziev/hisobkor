@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {validateBackup,fileReferences} from '../src/backup.mjs';
+import {formatPeriod,currentPeriod,documentName} from '../src/format.mjs';
+const state={profile:{fullName:'Test User',phone:'+998901234567'},companies:[{id:'c1',name:'Test'}],docs:[{id:'d1',fileKey:'v2',company:'c1',title:'Document',fileName:'current.pdf',status:'accepted',versions:[{fileKey:'v1',fileName:'old.pdf'}]}],activity:[],closed:[]};
+const backup=()=>({format:'hisobkor-backup',version:1,state:structuredClone(state),files:[{id:'v1',name:'old.pdf',base64:'YQ=='},{id:'v2',name:'current.pdf',base64:'YQ=='}]});
+test('backup retains original file versions and excludes missing/demo documents',()=>{assert.deepEqual(fileReferences({...state,docs:[...state.docs,{id:'sample',fileName:'x.pdf',demo:true},{id:'missing',fileName:'x.pdf',status:'missing'}]}).map(f=>f.id),['v2','v1']);assert.equal(validateBackup(backup()).state.docs[0].status,'accepted')});
+test('partial backups and broken company links are rejected before file writes',()=>{const partial=backup();partial.files.pop();assert.throws(()=>validateBackup(partial));const broken=backup();broken.state.docs[0].company='someone-else';assert.throws(()=>validateBackup(broken));const duplicated=backup();duplicated.files.push(duplicated.files[0]);assert.throws(()=>validateBackup(duplicated))});
+test('backup rejects traversal identifiers and unsupported content',()=>{const bad=backup();bad.files[0].id='../secret';assert.throws(()=>validateBackup(bad));const badType=backup();badType.files[0].name='executable.html';assert.throws(()=>validateBackup(badType))});
+test('Uzbek month labels are independent of browser locale support',()=>{assert.equal(formatPeriod('2026-09'),'Sentabr 2026');assert.equal(formatPeriod('2027-01'),'Yanvar 2027');assert.equal(currentPeriod(new Date(2027,0,5)),'2027-01');assert.equal(documentName({title:'Hisob_faktura.pdf',fileName:'Hisob_faktura.pdf'}),'Hisob faktura');assert.equal(documentName({title:'Maxsus sarlavha',fileName:'abc.pdf'}),'Maxsus sarlavha')});

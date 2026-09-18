@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hisobkor",
+  "main": "worker/index.mjs",
+  "account_id": "325c99c8470fad72497137c33d95d4c4",
+  "compatibility_date": "2026-09-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [
+    {"pattern": "hisobkor.uz", "custom_domain": true},
+    {"pattern": "app.hisobkor.uz", "custom_domain": true},
+    {"pattern": "www.hisobkor.uz", "custom_domain": true}
+  ],
+  "assets": {"directory": "./public", "binding": "ASSETS", "run_worker_first": true, "html_handling": "none"},
+  "d1_databases": [{"binding": "DB", "database_name": "hisobkor-production", "database_id": "f4d84657-d471-4ef6-a9de-d104dfb8b3e5", "migrations_dir": "migrations"}],
+  "r2_buckets": [{"binding": "DOCUMENTS", "bucket_name": "hisobkor-documents"}],
+  "workflows": [{"binding": "DOCUMENT_REVIEW", "name": "hisobkor-document-review", "class_name": "DocumentReviewWorkflow"}],
+  "vars": {"APP_ORIGIN": "https://app.hisobkor.uz", "SITE_ORIGIN": "https://hisobkor.uz", "OPENAI_MODEL": "gpt-5.6-luna"},
+  "observability": {"enabled": true, "logs": {"enabled": true, "invocation_logs": false}}
+}

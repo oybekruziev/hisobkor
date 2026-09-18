@@ -1,0 +1,30 @@
+import React from 'react';
+const paths:Record<string,React.ReactNode>={
+ dashboard:<><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
+ company:<><path d="M4 21V5l10-2v18M14 9h6v12M2 21h20M8 7h2M8 11h2M8 15h2M17 13h1M17 17h1"/></>,
+ document:<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 12h8M8 16h6"/></>,
+ request:<><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M9 2h6v4H9zM8 11h8M8 15h5"/></>,
+ check:<path d="m5 12 4 4L19 6"/>,
+ review:<><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4M13 3h8v8M21 3 10 14"/></>,
+ chart:<><path d="M3 3v18h18M7 16v-5M12 16V7M17 16v-8"/></>,
+ arrow:<path d="M5 12h14m-5-5 5 5-5 5"/>,
+ down:<path d="m7 10 5 5 5-5"/>,
+ plus:<path d="M12 5v14M5 12h14"/>,
+ search:<><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></>,
+ bell:<><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></>,
+ clock:<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
+ calendar:<><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 11h18"/></>,
+ upload:<><path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/></>,
+ download:<><path d="M12 3v13m-5-5 5 5 5-5M4 16v5h16v-5"/></>,
+ settings:<><circle cx="12" cy="12" r="4"/><path d="m10 2-1 3-3 1-3-1-2 4 2 2v3l-2 2 2 4 3-1 3 1 1 3h4l1-3 3-1 3 1 2-4-2-2v-3l2-2-2-4-3 1-3-1-1-3z" transform="translate(1 0) scale(.9)"/></>,
+ help:<><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 5M12 17h.01"/></>,
+ alert:<><path d="m12 3 10 18H2zM12 9v5M12 17h.01"/></>,
+ folder:<path d="M3 7V4h6l3 3h9v13H3z"/>,
+ close:<path d="m6 6 12 12M6 18 18 6"/>,
+ filter:<><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="currentColor"/><circle cx="15" cy="17" r="2" fill="currentColor"/></>,
+ spark:<><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5zM20 2v4M18 4h4"/></>,
+ shield:<><path d="m12 2 8 4v6c0 5-8 10-8 10S4 17 4 12V6z"/><path d="m8 12 3 3 5-6"/></>,
+ menu:<path d="M4 6h16M4 12h16M4 18h16"/>,
+ logout:<><path d="M9 4H4v16h5M9 12h12m-4-4 4 4-4 4"/></>
+};
+export function Icon({name,size=18,...rest}:any){return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...rest}>{paths[name]||paths.document}</svg>}

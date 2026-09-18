@@ -1,0 +1,11 @@
+import {build} from 'esbuild';
+import {execFileSync} from 'node:child_process';
+import {readFile,writeFile,unlink} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+await build({entryPoints:['src/main.tsx'],bundle:true,outfile:'public/app.js',jsx:'automatic',minify:true,sourcemap:false,target:['es2022'],define:{'process.env.NODE_ENV':'"production"'}});
+execFileSync(process.execPath,['node_modules/@tailwindcss/cli/dist/index.mjs','-i','src/styles.css','-o','public/style.css','--minify'],{stdio:'inherit'});
+await unlink('public/app.js.map').catch(e=>{if(e.code!=='ENOENT')throw e});
+const version=createHash('sha256').update(await readFile('public/app.js')).update(await readFile('public/style.css')).digest('hex').slice(0,12);
+const html=(await readFile('public/index.html','utf8')).replace(/(app\.js|style\.css)(?:\?v=[a-z0-9]+)?/g,`$1?v=${version}`);
+await writeFile('public/index.html',html);
+console.log(`Hisobkor.uz production build: ${version}`);

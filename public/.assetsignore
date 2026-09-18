@@ -1,0 +1,7 @@
+*.map
+*.md
+*.json
+*.pdf
+*.csv
+*.xlsx
+.DS_Store
