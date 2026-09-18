@@ -18,3 +18,5 @@ dist-worker/
 archive/
 *.sqlite
 *.sqlite-*
+
+public/landing.js

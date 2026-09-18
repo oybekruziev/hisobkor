@@ -148,6 +148,9 @@ test('apex static allowlist serves landing assets and rejects unrelated files', 
   const f = await fixture();
   let response = await f.worker.fetch(new Request('https://hisobkor.uz/landing.css'), f.env, f.ctx);
   assert.equal(await response.text(), '/landing.css');
+  response = await f.worker.fetch(new Request('https://hisobkor.uz/landing.js'), f.env, f.ctx);
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), '/landing.js');
   response = await f.worker.fetch(new Request('https://hisobkor.uz/app.js'), f.env, f.ctx);
   assert.equal(response.status, 404);
 });
