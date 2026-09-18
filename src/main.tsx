@@ -19,7 +19,7 @@ const initials=(name:string)=>name.split(' ').filter(Boolean).slice(0,2).map(x=>
 function Badge({status,children}:any){return <span className={`badge ${status==='accepted'?'solid':''}`}><Icon size={14} name={status==='accepted'?'check':status==='review_required'?'search':status==='correction_requested'?'alert':'clock'}/>{children||statuses[status]}</span>}
 function Empty({title,text,action}:any){return <div className="empty"><div className="empty-icon"><Icon name="folder" size={27}/></div><h3>{title}</h3><p>{text}</p>{action}</div>}
 function Modal({open,onClose,title,description,children,wide=false}:any){return <Dialog.Root open={open} onOpenChange={v=>!v&&onClose()}><Dialog.Portal><Dialog.Overlay className="modal-overlay"/><Dialog.Content className={`modal ${wide?'wide':''}`}><header><div><Dialog.Title>{title}</Dialog.Title><Dialog.Description>{description}</Dialog.Description></div><Dialog.Close asChild><Button variant="ghost" size="icon" aria-label="Yopish"><Icon name="close"/></Button></Dialog.Close></header>{children}</Dialog.Content></Dialog.Portal></Dialog.Root>}
-function Brand(){return <a href="#companies" className="brand" aria-label="Hisobkor.uz bosh sahifasi"><img src="/favicon.svg" alt=""/><strong>hisobkor<span>.uz</span></strong></a>}
+function Brand(){return <a href="#companies" className="brand" aria-label="Hisobkor.uz bosh sahifasi"><img src="/brand-h.png" alt=""/><strong>hisobkor<span>.uz</span></strong></a>}
 function App({saved,session,logout}:any){
  const [initial]=useState(()=>migrateWorkspace(saved));
  const [companies,setCompanies]=useState<any[]>(initial.companies);
