@@ -315,7 +315,7 @@ export function createWorker() {
         if (!url.pathname.startsWith('/api/')) {
           if (request.method !== 'GET' && request.method !== 'HEAD') return fail(405, 'Usul qo‘llab-quvvatlanmaydi.');
           if (!STATIC_APP.has(url.pathname)) return fail(404, 'Sahifa topilmadi.');
-          return await serveAsset(request, env, url.pathname);
+          return await serveAsset(request, env, url.pathname === '/' ? '/index.html' : url.pathname);
         }
         if (request.method === 'GET' && url.pathname === '/api/session') {
           const auth = await session(request, env, ctx);

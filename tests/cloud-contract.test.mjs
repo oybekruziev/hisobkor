@@ -77,6 +77,20 @@ async function fixture() {
   return {db, env, token1, token2, worker: createWorker(), ctx: {waitUntil(promise) { promise.catch(() => undefined); }}};
 }
 
+test('app root serves the index asset for GET and HEAD when automatic HTML handling is disabled', async () => {
+  const f = await fixture();
+  f.env.ASSETS.fetch = async request => {
+    if (new URL(request.url).pathname !== '/index.html') return new Response(null, {status: 404});
+    return new Response(request.method === 'HEAD' ? null : '<main>Hisobkor</main>', {headers: {'Content-Type': 'text/html'}});
+  };
+  for (const method of ['GET', 'HEAD']) {
+    const response = await f.worker.fetch(new Request('https://app.hisobkor.uz/?from=landing', {method}), f.env, f.ctx);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+    assert.equal(await response.text(), method === 'GET' ? '<main>Hisobkor</main>' : '');
+  }
+});
+
 test('session and workspace responses use server production mode', async () => {
   const f = await fixture();
   let response = await f.worker.fetch(new Request('https://app.hisobkor.uz/api/session', {headers: {Cookie: `__Host-mezon_session=${f.token1}`}}), f.env, f.ctx);
