@@ -1,4 +1,4 @@
-import {randomToken, sha256Hex, verifyPassword} from './crypto.mjs';
+import {randomToken, sha256Hex, verifyPassword, pbkdf2, bytesToHex} from './crypto.mjs';
 import {eligibleDocument, MAX_FILE_BYTES, MAX_WORKSPACE_BYTES, safeDocumentName, validFileId, validateFile, validateWorkspaceState} from './validation.mjs';
 
 const SESSION_COOKIE = '__Host-mezon_session';
@@ -103,10 +103,10 @@ async function session(request, env, ctx) {
   return {accountId: row.account_id, workspaceId: row.workspace_id, tokenHash};
 }
 
-async function rateLimitLogin(request, env) {
+async function rateLimitLogin(request, env, scope = '') {
   const now = nowMs();
   const address = request.headers.get('CF-Connecting-IP') || (env.ENVIRONMENT === 'local' ? 'local' : 'unknown');
-  const bucket = await sha256Hex(`${address}:${Math.floor(now / LOGIN_WINDOW_MS)}`);
+  const bucket = await sha256Hex(`${scope}${address}:${Math.floor(now / LOGIN_WINDOW_MS)}`);
   const expires = now + LOGIN_WINDOW_MS;
   const row = await env.DB.prepare(`INSERT INTO login_limits(bucket, attempts, expires_at) VALUES(?, 1, ?)
     ON CONFLICT(bucket) DO UPDATE SET
@@ -132,6 +132,39 @@ async function login(request, env) {
   await env.DB.prepare('INSERT INTO sessions(token_hash,account_id,expires_at,created_at,last_seen_at) VALUES(?,?,?,?,?)')
     .bind(await sha256Hex(token), row.id, now + SESSION_SECONDS * 1000, now, now).run();
   return json({authenticated: true, mode: 'production', storage: 'server'}, 200, {'Set-Cookie': cookie(token)});
+}
+
+async function register(request, env) {
+  await rateLimitLogin(request, env, 'register:');
+  const body = await readJSON(request, 8 * 1024);
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new HttpError(400, 'Ro‘yxatdan o‘tish so‘rovi yaroqsiz.');
+  const username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : '';
+  if (!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(username)) throw new HttpError(400, 'Login 3–40 belgidan iborat bo‘lsin. Lotin harflari, raqam, nuqta, chiziqcha va pastki chiziqdan foydalaning.');
+  const password = body.password;
+  if (typeof password !== 'string' || password.length < 12 || password.length > 128 || !password.trim()) throw new HttpError(400, 'Parol 12–128 belgidan iborat bo‘lsin.');
+  if (password !== body.confirmPassword) throw new HttpError(400, 'Parollar bir xil emas.');
+  const existing = () => env.DB.prepare('SELECT id FROM accounts WHERE username=? COLLATE NOCASE').bind(username).first();
+  if (await existing()) throw new HttpError(409, 'Bu login band. Boshqa login tanlang.');
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const hash = bytesToHex(await pbkdf2(password, salt));
+  const accountId = crypto.randomUUID(), workspaceId = crypto.randomUUID(), token = randomToken();
+  const now = nowMs();
+  // D1 batch is transactional: an account, its private workspace and its
+  // first session either all exist or none do (including duplicate races).
+  try {
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO accounts(id,username,password_salt,password_hash,password_iterations,workspace_id,created_at) VALUES(?,?,?,?,?,?,?)')
+        .bind(accountId, username, bytesToHex(salt), hash, 100000, workspaceId, now),
+      env.DB.prepare("INSERT INTO workspaces(id,account_id,state_json,revision,updated_at) VALUES(?,?,'null',0,?)")
+        .bind(workspaceId, accountId, now),
+      env.DB.prepare('INSERT INTO sessions(token_hash,account_id,expires_at,created_at,last_seen_at) VALUES(?,?,?,?,?)')
+        .bind(await sha256Hex(token), accountId, now + SESSION_SECONDS * 1000, now, now),
+    ]);
+  } catch (error) {
+    if (await existing()) throw new HttpError(409, 'Bu login band. Boshqa login tanlang.');
+    throw error;
+  }
+  return json({authenticated: true, mode: 'production', storage: 'server'}, 201, {'Set-Cookie': cookie(token)});
 }
 
 async function getWorkspace(auth, env) {
@@ -324,6 +357,11 @@ export function createWorker() {
         if (request.method === 'POST' && url.pathname === '/api/login') {
           if (!mutationAllowed(request, env)) return fail(403, 'Ruxsat berilmagan so‘rov.');
           return await login(request, env);
+        }
+        if (request.method === 'POST' && url.pathname === '/api/register') {
+          if (!mutationAllowed(request, env)) return fail(403, 'Ruxsat berilmagan so‘rov.');
+          if (await session(request, env, ctx)) return fail(409, 'Yangi hisob yaratishdan oldin joriy hisobdan chiqing.');
+          return await register(request, env);
         }
         const auth = await session(request, env, ctx);
         if (!auth) return fail(401, 'Tizimga qayta kiring.');

@@ -6,7 +6,9 @@ The production API runs from `worker/index.mjs`. It requires four bindings: D1 a
 
 Apply all migrations in `migrations/` to D1 before sending traffic. The worker fails closed with HTTP 503 when the schema or a required binding is missing.
 
-Create each account offline; there is no public registration endpoint:
+Users can create an account at `https://app.hisobkor.uz/#register`. `POST /api/register` accepts `username`, `password`, and `confirmPassword`. Usernames are normalized to lowercase (3–40 ASCII letters, digits, dots, hyphens or underscores, starting with a letter or digit); passwords require 12–128 characters. Registration has a separate five-attempt/IP/15-minute D1 limit and requires the same origin/header checks as login. The account, empty private workspace and initial session are created in one D1 transaction. Duplicate usernames return 409 without overwriting an account. Successful registration opens profile onboarding. Email verification and email password recovery are not enabled.
+
+Offline provisioning remains available for administrative use:
 
 ```sh
 MEZON_BOOTSTRAP_PASSWORD='a-long-random-password' node worker/admin-seed.mjs owner@example.uz > /tmp/mezon-account.sql
@@ -35,5 +37,5 @@ Mutating requests require `APP_ORIGIN` exactly and `X-Mezon-Request: 1`. Product
 Run the backend contract tests without network or paid API calls:
 
 ```sh
-node --test tests/cloud*.test.mjs
+node --test tests/cloud*.test.mjs tests/registration.test.mjs
 ```

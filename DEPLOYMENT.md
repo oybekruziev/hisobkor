@@ -31,7 +31,9 @@ Model ochiq konfiguratsiyadagi `OPENAI_MODEL` bilan belgilanadi. API kaliti bo�
 
 ## Hisoblar
 
-Hisob yaratish va parol hashini tayyorlash uchun `worker/admin-seed.mjs` yordamchisi mavjud. Ishlaydigan aniq tartib [CLOUD-BACKEND.md](docs/CLOUD-BACKEND.md)da. Parolni shell tarixiga ochiq yozmang; interaktiv kiritishdan foydalaning. Hash saqlanadi, asl parol D1’ga yozilmaydi. Ochiq ro‘yxatdan o‘tish, email tasdiqlash va parolni email bilan tiklash bu bosqichda yo‘q.
+Foydalanuvchi `app.hisobkor.uz/#register` sahifasida login va parol tanlab hisob yaratadi. Hisob ochilgach, o‘zining bo‘sh ish joyida buxgalter ma’lumotlarini to‘ldiradi. Login 3–40, parol 12–128 belgidan iborat; parol takroran kiritiladi. Asl parol D1’ga yozilmaydi, faqat hash saqlanadi. Email tasdiqlash va parolni email bilan tiklash yoqilmagan.
+
+Administrator uchun `worker/admin-seed.mjs` yordamchisi ham mavjud. Tartib [CLOUD-BACKEND.md](docs/CLOUD-BACKEND.md)da. Parolni shell tarixiga ochiq yozmang; interaktiv kiritishdan foydalaning.
 
 ## Zaxira va tiklash
 
