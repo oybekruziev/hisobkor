@@ -1,3 +1,7 @@
+import {Skeleton} from './components/ui/skeleton';
+import {Alert} from './components/ui/alert';
+import {Label} from './components/ui/label';
+import {Card} from './components/ui/card';
 import React,{useEffect,useState} from 'react';
 import {Button} from './components/ui/button';
 import {Input} from './components/ui/input';
@@ -22,20 +26,20 @@ export function Runtime({children}:any){
  if(state!==undefined)return children({initial:state,session,logout});
  return <div className="session-screen">
   <a className="brand" href="/"><img src="/brand-h.png" alt=""/><strong>hisobkor<span>.uz</span></strong></a>
-  {session&&!session.authenticated&&session.mode==='production'?<section className="login-panel" aria-labelledby="auth-heading">
+  {session&&!session.authenticated&&session.mode==='production'?<Card className="login-panel" aria-labelledby="auth-heading">
    <span className="login-icon"><Icon name="shield" size={26}/></span>
    <h1 id="auth-heading">{registering?'Hisob yarating':'Ish joyingizga kiring'}</h1>
    <p>{registering?'Login va parol tanlang. Keyin buxgalter ma’lumotlaringizni to‘ldirasiz.':'Kompaniyalaringiz va hujjatlaringiz bir joyda.'}</p>
    <form key={registering?'register':'login'} onSubmit={submit} aria-busy={busy}>
-    <label>Foydalanuvchi nomi<Input name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} required autoFocus minLength={registering?3:undefined} maxLength={registering?40:128} pattern={registering?'[a-zA-Z0-9][a-zA-Z0-9._\\-]{2,39}':undefined} placeholder={registering?'Masalan, oybek_uz':undefined} aria-describedby={registering?'username-hint':undefined}/></label>
+    <Label>Foydalanuvchi nomi<Input name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} required autoFocus minLength={registering?3:undefined} maxLength={registering?40:128} pattern={registering?'[a-zA-Z0-9][a-zA-Z0-9._\\-]{2,39}':undefined} placeholder={registering?'Masalan, oybek_uz':undefined} aria-describedby={registering?'username-hint':undefined}/></Label>
     {registering&&<p id="username-hint" className="auth-hint">3–40 belgi: lotin harflari, raqam, nuqta, chiziqcha yoki pastki chiziq.</p>}
-    <label>Parol<Input type="password" name="password" autoComplete={registering?'new-password':'current-password'} required minLength={registering?12:undefined} maxLength={registering?128:1024} aria-describedby={registering?'password-hint':undefined}/></label>
-    {registering&&<><p id="password-hint" className="auth-hint">Kamida 12 belgi. Bir necha so‘zdan iborat uzun parol tanlashingiz mumkin.</p><label>Parolni takrorlang<Input type="password" name="confirmPassword" autoComplete="new-password" required minLength={12} maxLength={128}/></label></>}
-    {error&&<p className="form-error" role="alert">{error}</p>}
+    <Label>Parol<Input type="password" name="password" autoComplete={registering?'new-password':'current-password'} required minLength={registering?12:undefined} maxLength={registering?128:1024} aria-describedby={registering?'password-hint':undefined}/></Label>
+    {registering&&<><p id="password-hint" className="auth-hint">Kamida 12 belgi. Bir necha so‘zdan iborat uzun parol tanlashingiz mumkin.</p><Label>Parolni takrorlang<Input type="password" name="confirmPassword" autoComplete="new-password" required minLength={12} maxLength={128}/></Label></>}
+    {error&&<Alert className="form-error" role="alert">{error}</Alert>}
     <Button className="full-width" disabled={busy} type="submit">{busy?(registering?'Hisob yaratilmoqda…':'Kirilmoqda…'):(registering?'Hisob yaratish':'Kirish')}<Icon name="arrow"/></Button>
    </form>
    <div className="auth-switch"><span>{registering?'Hisobingiz bormi?':'Hali hisobingiz yo‘qmi?'}</span><Button type="button" variant="link" disabled={busy} onClick={switchMode}>{registering?'Kirish':'Hisob yaratish'}</Button></div>
-  </section>:<div className="loading-panel" role="status">{error?<><Icon name="alert" size={28}/><h1>Ish joyini ochib bo‘lmadi</h1><p>{error}</p><Button onClick={init}>Qayta urinish</Button></>:<><div className="loading-skeleton"/><p>Ish joyingiz tayyorlanmoqda…</p></>}</div>}
+  </Card>:<div className="loading-panel" role="status">{error?<><Icon name="alert" size={28}/><h1>Ish joyini ochib bo‘lmadi</h1><p>{error}</p><Button onClick={init}>Qayta urinish</Button></>:<><Skeleton className="loading-skeleton"/><p>Ish joyingiz tayyorlanmoqda…</p></>}</div>}
   <p className="session-footer">Hisobkor.uz · Buxgalteriya, tartib bilan.</p>
  </div>
 }

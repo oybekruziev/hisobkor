@@ -1,6 +1,11 @@
-Button, Card and Input from the official shadcn/ui new-york-v4 registry.
-https://ui.shadcn.com/r/styles/new-york-v4/button.json
-https://ui.shadcn.com/r/styles/new-york-v4/card.json
-https://ui.shadcn.com/r/styles/new-york-v4/input.json
+# shadcn/ui components
 
-shadcn/ui is MIT licensed. Imports of cn are mapped to the local utility.
+Installed using the official shadcn CLI and the new-york registry.
+https://ui.shadcn.com/docs/installation/manual
+https://ui.shadcn.com/docs/components
+
+The existing React + esbuild application uses components.json and tsconfig aliases.
+All application controls, menus, dialogs, navigation, tables, cards, badges, empty
+states and charts compose these components. Charts use the registry’s Recharts integration.
+Local adaptations: minimum 14px text, Uzbek screen reader labels, and shared blue theme.
+The original MIT license is retained in LICENSE.md.
