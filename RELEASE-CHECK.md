@@ -14,9 +14,10 @@
 - Ahost nameserverlari everton.ns.cloudflare.com va mona.ns.cloudflare.com ga saqlandi. Pochta A/MX/TXT yozuvlari Cloudflare’da saqlandi.
 - GitHub CI: test va Cloudflare dry-run build. Maxfiy qiymatlar va foydalanuvchi fayllari Git/release ichiga kirmaydi.
 
+- 2026-09-18: OPENAI_API_KEY Cloudflare encrypted Secret sifatida saqlandi. Haqiqiy R2 → Workflow → OpenAI Responses → D1 sinovi muvaffaqiyatli: sun’iy PDFdan TEST-001, 100000 UZS va TEST-C01 to‘g‘ri ajratildi; o‘zbekcha izohlar qaytdi. Sinov fayli va vaqtinchalik yopiq yozuvlar tozalandi. Bu matnli PDF sinovi; skanerlangan rasmlarning OCR sifati alohida baholanadi.
+
 ## Hali yakunlanmagan
 
-- OpenAI API kaliti kiritilmagan: haqiqiy OCR/AI chaqiruvi tekshirilmagan. Testlarda sun’iy javoblar ishlatilgan. Workflow sinovi haqiqiy kalit bilan alohida bajariladi.
 - Birinchi production hisobini yaratish uchun foydalanuvchi roziligi kutilmoqda.
 - Nameserver o‘zgarishi saqlangan, lekin tashqi DNS/HTTPS tarqalishi tekshiruv paytida tugamagan. Cloudflare zone pending.
 - Ochiq ro‘yxatdan o‘tish, email tasdiqlash, parolni email bilan tiklash yo‘q; hisob administrator orqali ochiladi.
