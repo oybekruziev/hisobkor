@@ -51,6 +51,7 @@ function Button({
 
   return (
     <Comp
+      {...(asChild ? {} : {type: "button" as const})}
       data-slot="button"
       data-variant={variant}
       data-size={size}

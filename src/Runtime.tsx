@@ -1,3 +1,4 @@
+import {Brand} from './components/Brand';
 import {Skeleton} from './components/ui/skeleton';
 import {Alert} from './components/ui/alert';
 import {Label} from './components/ui/label';
@@ -24,10 +25,16 @@ export function Runtime({children}:any){
  }
  async function logout(){await request('/api/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});location.reload()}
  if(state!==undefined)return children({initial:state,session,logout});
- return <div className="session-screen">
-  <a className="brand" href="/"><img src="/brand-h.png" alt=""/><strong>hisobkor<span>.uz</span></strong></a>
+ return <div className="auth-layout session-screen isolate antialiased">
+  <aside className="auth-intro">
+   <Brand href="https://hisobkor.uz"/>
+   <div className="auth-story"><p className="section-kicker">Buxgalterning ish joyi</p><h2>Hujjatlar tartibda.<br/>Ishingiz nazoratda.</h2><p>Har bir kompaniya uchun hujjatlar, tekshiruvlar va qarorlar bitta joyda.</p>
+   <ol className="auth-steps" role="list"><li><span>01</span><div><strong>Hisobingizni yarating</strong><p>Login va parol bilan boshlang.</p></div></li><li><span>02</span><div><strong>Kompaniyangizni qo‘shing</strong><p>Har bir tashkilot alohida yuritiladi.</p></div></li><li><span>03</span><div><strong>Hujjatlar bilan ishlang</strong><p>Yuklang, solishtiring va qaror bering.</p></div></li></ol></div>
+   <p className="auth-brand-note">Hisobkor.uz · Buxgalteriya, tartib bilan.</p>
+  </aside>
+  <main className="auth-main"><Brand href="https://hisobkor.uz" className="auth-mobile-brand"/>
   {session&&!session.authenticated&&session.mode==='production'?<Card className="login-panel" aria-labelledby="auth-heading">
-   <span className="login-icon"><Icon name="shield" size={26}/></span>
+   <p className="auth-eyebrow">{registering?"Hisobkor’ga xush kelibsiz":"Yana xush kelibsiz"}</p>
    <h1 id="auth-heading">{registering?'Hisob yarating':'Ish joyingizga kiring'}</h1>
    <p>{registering?'Login va parol tanlang. Keyin buxgalter ma’lumotlaringizni to‘ldirasiz.':'Kompaniyalaringiz va hujjatlaringiz bir joyda.'}</p>
    <form key={registering?'register':'login'} onSubmit={submit} aria-busy={busy}>
@@ -40,8 +47,8 @@ export function Runtime({children}:any){
    </form>
    <div className="auth-switch"><span>{registering?'Hisobingiz bormi?':'Hali hisobingiz yo‘qmi?'}</span><Button type="button" variant="link" disabled={busy} onClick={switchMode}>{registering?'Kirish':'Hisob yaratish'}</Button></div>
   </Card>:<div className="loading-panel" role="status">{error?<><Icon name="alert" size={28}/><h1>Ish joyini ochib bo‘lmadi</h1><p>{error}</p><Button onClick={init}>Qayta urinish</Button></>:<><Skeleton className="loading-skeleton"/><p>Ish joyingiz tayyorlanmoqda…</p></>}</div>}
-  <p className="session-footer">Hisobkor.uz · Buxgalteriya, tartib bilan.</p>
- </div>
+  <p className="session-footer">Shaxsiy ish joyingiz.</p>
+ </main></div>
 }
 export class ErrorBoundary extends React.Component<any,{failed:boolean}>{
  state={failed:false};

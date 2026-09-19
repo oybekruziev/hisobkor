@@ -1,3 +1,5 @@
+import {StatStrip} from './components/StatStrip';
+import {SearchField} from './components/SearchField';
 import React,{useMemo,useState} from 'react';
 import {ArrowRight,Building2,CheckCheck,ChevronDown,FileCheck2,FileText,FolderOpen,Search,ShieldCheck,Sparkles,TriangleAlert,Clock3,Plus} from 'lucide-react';
 import {PageHeader} from './components/PageHeader';
@@ -41,11 +43,11 @@ function Comparison({row,onCompany}:any){
  const notes=primary?row.notes.filter((n:any)=>n.documentId===primary.id):[];
  const openDoc=(doc:any)=>onCompany(row.company.id,doc.scope==='permanent'?'archive':'documents');
  return <section className="comparison-panel" aria-label={`${row.company.name} hujjatlarini solishtirish`}>
-  <header className="comparison-header"><h2><Sparkles aria-hidden="true"/>Hujjatlarni solishtirish</h2><div className="comparison-header-actions">{row.analyzed.length>1&&<NativeSelect aria-label="Solishtiriladigan hujjat" value={primary?.id||''} onChange={e=>setSelected(e.target.value)}>{row.analyzed.map((d:any)=><NativeSelectOption key={d.id} value={d.id}>{documentName(d)}</NativeSelectOption>)}</NativeSelect>}<Badge variant="outline">{row.analyzed.length}/{row.uploaded.length} tekshirilgan</Badge></div></header>
+  <header className="comparison-header"><h2><Sparkles aria-hidden="true"/>Hujjatlarni solishtirish</h2><div className="comparison-header-actions">{row.analyzed.length>1&&<NativeSelect name="comparisonDocument" aria-label="Solishtiriladigan hujjat" value={primary?.id||''} onChange={e=>setSelected(e.target.value)}>{row.analyzed.map((d:any)=><NativeSelectOption key={d.id} value={d.id}>{documentName(d)}</NativeSelectOption>)}</NativeSelect>}<Badge variant="outline">{row.analyzed.length}/{row.uploaded.length} tekshirilgan</Badge></div></header>
   <div className="evidence-grid"><EvidenceCard doc={primary} mismatch={dateMismatch} onOpen={openDoc}/><EvidenceCard doc={contract} contract mismatch={dateMismatch} onOpen={openDoc}/></div>
   {primary&&<div className="comparison-summary"><strong>AI xulosasi</strong><p>{primary.ai.result.summary}</p></div>}
   {notes.length>0&&<div className="comparison-notes">{notes.slice(0,3).map((note:any,index:number)=><Alert key={index} className="review-note" data-tone="warning"><TriangleAlert aria-hidden="true"/><AlertDescription><strong>{note.title}</strong><p>{note.detail}</p>{note.action&&<p><b>Tavsiya:</b> {note.action}</p>}</AlertDescription></Alert>)}{notes.length>3&&<p>Yana {notes.length-3} ta izoh hujjat ichida mavjud.</p>}</div>}
-  <footer className="comparison-footer"><p><ShieldCheck aria-hidden="true"/>AI xulosasi yordamchi. Yakuniy qarorni buxgalter beradi.</p><Button onClick={()=>onCompany(row.company.id,primary?.scope==='permanent'?'archive':'documents')}>Hujjatlarni ko‘rish<ArrowRight data-icon="inline-end"/></Button></footer>
+  <footer className="comparison-footer"><p><ShieldCheck aria-hidden="true"/>AI xulosasi yordamchi. Yakuniy qarorni buxgalter beradi.</p><Button variant="outline" onClick={()=>onCompany(row.company.id,primary?.scope==='permanent'?'archive':'documents')}>Hujjatlarni ko‘rish<ArrowRight data-icon="inline-end"/></Button></footer>
  </section>;
 }
 
@@ -64,10 +66,10 @@ export function Dashboard({companies,docs,onCompany,onAdd}:any){
   {label:'Kompaniyalar',value:`${companies.length} ta`,hint:formatPeriod(period),icon:Building2,tone:'info'},
  ];
  return <div className="control-dashboard">
-  <PageHeader title="Umumiy ko‘rinish" description="Kompaniyalar, hujjatlar va tekshiruvlar — bir joyda." actions={<><Input type="month" className="period-input" aria-label="Dashboard davri" value={period} min="2000-01" max="2100-12" onChange={e=>{if(/^\d{4}-\d{2}$/.test(e.target.value)){setPeriod(e.target.value);setExpanded(undefined)}}}/><Button onClick={onAdd}><Plus data-icon="inline-start"/>Kompaniya qo‘shish</Button></>}/>
+  <PageHeader title="Umumiy ko‘rinish" description="Kompaniyalar, hujjatlar va tekshiruvlar — bir joyda." actions={<><Input name="period" type="month" className="period-input" aria-label="Dashboard davri" value={period} min="2000-01" max="2100-12" onChange={e=>{if(/^\d{4}-\d{2}$/.test(e.target.value)){setPeriod(e.target.value);setExpanded(undefined)}}}/><Button onClick={onAdd}><Plus data-icon="inline-start"/>Kompaniya qo‘shish</Button></>}/>
   <Card className="control-board">
-   <div className="control-metrics">{metrics.map(m=><section key={m.label} className="control-metric" data-tone={m.tone}><div><span className="metric-label">{m.label}</span><div className="metric-value"><strong>{m.value}</strong><span>{m.hint}</span></div></div><span className="metric-symbol"><m.icon aria-hidden="true"/></span></section>)}</div>
-   <div className="control-toolbar"><div className="search-field"><Search aria-hidden="true"/><Input aria-label="Dashboard kompaniyalarini qidirish" placeholder="Kompaniya nomi yoki STIR" value={query} onChange={e=>setQuery(e.target.value)}/></div><p>Tanlangan oy va doimiy hujjatlar</p></div>
+   <StatStrip items={metrics} className="dashboard-metrics"/>
+   <div className="control-toolbar"><SearchField aria-label="Dashboard kompaniyalarini qidirish" placeholder="Kompaniya nomi yoki STIR" value={query} onChange={e=>setQuery(e.target.value)}/><p>Tanlangan oy va doimiy hujjatlar</p></div>
    {visible.length?<div className="control-table"><Table><TableHeader><TableRow><TableHead>Kompaniya / STIR</TableHead> <TableHead>Davr</TableHead><TableHead>Yuklangan</TableHead><TableHead>AI tekshiruvi holati</TableHead><TableHead>Holat</TableHead><TableHead>Amallar</TableHead></TableRow></TableHeader><TableBody>{visible.map((row:any)=>{
     const tone=row.notes.length?'warning':row.state==='ready'?'success':'info';
     const open=active===row.company.id;
@@ -80,7 +82,7 @@ export function Dashboard({companies,docs,onCompany,onAdd}:any){
      <TableCell><Badge variant="outline" className="control-state" data-tone={row.state==='ready'?'success':row.state==='review'?'warning':'info'}><span className="status-dot"/>{stateLabels[row.state]}</Badge></TableCell>
      <TableCell><div className="control-row-actions"><Button variant={open?'secondary':'outline'} size="sm" aria-expanded={open} aria-controls={open?id:undefined} onClick={()=>setExpanded(open?null:row.company.id)}>{open?'Yopish':'Solishtirish'}<ChevronDown data-icon="inline-end" className={open?'rotate-180':undefined}/></Button><Button variant="ghost" size="icon" aria-label={`${row.company.name} kompaniyasini ochish`} onClick={()=>onCompany(row.company.id)}><ArrowRight/></Button></div></TableCell>
     </TableRow>{open&&<TableRow className="control-detail-row"><TableCell colSpan={6} id={id}><Comparison key={row.company.id} row={row} onCompany={onCompany}/></TableCell></TableRow>}</React.Fragment>;
-   })}</TableBody></Table></div>:<Empty><EmptyHeader><EmptyMedia variant="icon"><Building2/></EmptyMedia><EmptyTitle>{companies.length?'Kompaniya topilmadi':'Birinchi kompaniyangizni qo‘shing'}</EmptyTitle><EmptyDescription>{companies.length?'Boshqa nom yoki STIR bilan qidiring.':'Kompaniyalar va hujjatlar holati shu yerda ko‘rinadi.'}</EmptyDescription></EmptyHeader>{!companies.length&&<EmptyContent><Button onClick={onAdd}><Plus data-icon="inline-start"/>Kompaniya qo‘shish</Button></EmptyContent>}</Empty>}
+   })}</TableBody></Table></div>:<Empty><EmptyHeader><EmptyMedia variant="icon"><Building2/></EmptyMedia><EmptyTitle>{companies.length?'Kompaniya topilmadi':'Birinchi kompaniyangizni qo‘shing'}</EmptyTitle><EmptyDescription>{companies.length?'Boshqa nom yoki STIR bilan qidiring.':'Kompaniyalar va hujjatlar holati shu yerda ko‘rinadi.'}</EmptyDescription></EmptyHeader>{!companies.length&&<EmptyContent><Button variant="outline" onClick={onAdd}><Plus data-icon="inline-start"/>Kompaniya qo‘shish</Button></EmptyContent>}</Empty>}
    <CardFooter className="control-board-footer"><span><ShieldCheck aria-hidden="true"/>Har bir kompaniyaning hujjatlari alohida yuritiladi.</span><span>{companies.length} ta kompaniya · {totals.uploaded} ta hujjat</span></CardFooter>
   </Card>
  </div>;
