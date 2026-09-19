@@ -1,60 +1,87 @@
-import {PageHeader} from './components/PageHeader';
-import {TableCell,TableBody,TableHead,TableRow,TableHeader,Table} from './components/ui/table';
-import {Badge} from './components/ui/badge';
-import {Empty,EmptyHeader,EmptyMedia,EmptyTitle,EmptyDescription,EmptyContent} from './components/ui/empty';
-import {ChartContainer,ChartTooltip,ChartTooltipContent} from './components/ui/chart';
-import {AreaChart,Area,CartesianGrid,XAxis,YAxis} from 'recharts';
-import {ToggleGroup,ToggleGroupItem} from './components/ui/toggle-group';
-import {Collapsible,CollapsibleTrigger,CollapsibleContent} from './components/ui/collapsible';
-import {Card,CardHeader,CardTitle,CardDescription,CardContent,CardFooter} from './components/ui/card';
 import React,{useMemo,useState} from 'react';
+import {ArrowRight,Building2,CheckCheck,ChevronDown,FileCheck2,FileText,FolderOpen,Search,ShieldCheck,Sparkles,TriangleAlert,Clock3,Plus} from 'lucide-react';
+import {PageHeader} from './components/PageHeader';
+import {Table,TableBody,TableCell,TableHead,TableHeader,TableRow} from './components/ui/table';
+import {Card,CardHeader,CardTitle,CardDescription,CardContent,CardFooter} from './components/ui/card';
+import {Badge} from './components/ui/badge';
 import {Button} from './components/ui/button';
-import {Icon} from './Icon';
-import {documentName} from './format.mjs';
-import {statuses} from './domain.mjs';
+import {Input} from './components/ui/input';
+import {NativeSelect,NativeSelectOption} from './components/ui/native-select';
+import {Progress} from './components/ui/progress';
+import {Alert,AlertDescription} from './components/ui/alert';
+import {Empty,EmptyHeader,EmptyMedia,EmptyTitle,EmptyDescription,EmptyContent} from './components/ui/empty';
+import {dashboardRows,comparisonPair} from './dashboard-model.mjs';
+import {currentPeriod,formatPeriod,documentName} from './format.mjs';
+
+const stateLabels={empty:'Hujjat yo‘q',waiting:'Hujjat kutilmoqda',ready:'Qabul qilingan',review:'Tekshirish kerak'};
+const money=(r:any)=>typeof r?.total==='number'?`${new Intl.NumberFormat('uz-UZ').format(r.total)} ${r.currency||''}`:'Aniqlanmagan';
+const date=(value:string)=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')?value.split('-').reverse().join('.'):value||'Aniqlanmagan';
+
+function EvidenceCard({doc,contract=false,mismatch=false,onOpen}:any){
+ const result=doc?.ai.result;
+ const title=contract?'Bog‘langan shartnoma':result?.kind==='invoice'?'Hisob-faktura':'Hujjat rekvizitlari';
+ const fields=result?[
+  ['Hujjat raqami',result.number||'Aniqlanmagan',false],
+  ['Hujjat sanasi',date(result.date),contract&&mismatch],
+  ['Sotuvchi STIRi',result.sellerTaxId||'Aniqlanmagan',false],
+  ['Xaridor STIRi',result.buyerTaxId||'Aniqlanmagan',false],
+  ...(!contract&&result.kind==='invoice'?[['Shartnoma havolasi',[result.contractNumber,date(result.contractDate)].filter(Boolean).join(' · '),mismatch]]:[]),
+  ['Jami summa',money(result),false],
+ ]:[];
+ return <Card className="evidence-card">
+  <CardHeader><CardTitle><FileText aria-hidden="true"/><h3>{title}</h3></CardTitle><Badge variant="secondary">{doc?'AI o‘qigan':'Kutilmoqda'}</Badge></CardHeader>
+  <CardContent>{doc?<><p className="evidence-filename">{documentName(doc)}</p><dl>{fields.map(([label,value,highlight])=><div key={String(label)} data-highlight={highlight||undefined}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></>:<Empty><EmptyHeader><EmptyMedia variant="icon"><FolderOpen/></EmptyMedia><EmptyTitle>{contract?'Bog‘langan shartnoma topilmadi':'Tekshiruv natijasi hali yo‘q'}</EmptyTitle><EmptyDescription>{contract?'Aniq raqam bilan mos kelgan va tekshirilgan shartnoma shu yerda ko‘rinadi.':'Hujjat yuklang. Avtomatik tekshiruv tugagach rekvizitlar ko‘rinadi.'}</EmptyDescription></EmptyHeader></Empty>}</CardContent>
+  {doc&&<CardFooter><span>{doc.fileName?.split('.').pop()?.toUpperCase()} · {doc.size||'Fayl'}</span><Button variant="ghost" size="sm" onClick={()=>onOpen(doc)}>Hujjatlar bo‘limi<ArrowRight data-icon="inline-end"/></Button></CardFooter>}
+ </Card>;
+}
+
+function Comparison({row,onCompany}:any){
+ const [selected,setSelected]=useState('');
+ const {primary,contract,dateMismatch}=comparisonPair(row,selected);
+ const notes=primary?row.notes.filter((n:any)=>n.documentId===primary.id):[];
+ const openDoc=(doc:any)=>onCompany(row.company.id,doc.scope==='permanent'?'archive':'documents');
+ return <section className="comparison-panel" aria-label={`${row.company.name} hujjatlarini solishtirish`}>
+  <header className="comparison-header"><h2><Sparkles aria-hidden="true"/>Hujjatlarni solishtirish</h2><div className="comparison-header-actions">{row.analyzed.length>1&&<NativeSelect aria-label="Solishtiriladigan hujjat" value={primary?.id||''} onChange={e=>setSelected(e.target.value)}>{row.analyzed.map((d:any)=><NativeSelectOption key={d.id} value={d.id}>{documentName(d)}</NativeSelectOption>)}</NativeSelect>}<Badge variant="outline">{row.analyzed.length}/{row.uploaded.length} tekshirilgan</Badge></div></header>
+  <div className="evidence-grid"><EvidenceCard doc={primary} mismatch={dateMismatch} onOpen={openDoc}/><EvidenceCard doc={contract} contract mismatch={dateMismatch} onOpen={openDoc}/></div>
+  {primary&&<div className="comparison-summary"><strong>AI xulosasi</strong><p>{primary.ai.result.summary}</p></div>}
+  {notes.length>0&&<div className="comparison-notes">{notes.slice(0,3).map((note:any,index:number)=><Alert key={index} className="review-note" data-tone="warning"><TriangleAlert aria-hidden="true"/><AlertDescription><strong>{note.title}</strong><p>{note.detail}</p>{note.action&&<p><b>Tavsiya:</b> {note.action}</p>}</AlertDescription></Alert>)}{notes.length>3&&<p>Yana {notes.length-3} ta izoh hujjat ichida mavjud.</p>}</div>}
+  <footer className="comparison-footer"><p><ShieldCheck aria-hidden="true"/>AI xulosasi yordamchi. Yakuniy qarorni buxgalter beradi.</p><Button onClick={()=>onCompany(row.company.id,primary?.scope==='permanent'?'archive':'documents')}>Hujjatlarni ko‘rish<ArrowRight data-icon="inline-end"/></Button></footer>
+ </section>;
+}
 
 export function Dashboard({companies,docs,onCompany,onAdd}:any){
- const [days,setDays]=useState(30);
- const uploaded=docs.filter((d:any)=>d.status!=='missing'&&d.fileName);
- const review=docs.filter((d:any)=>d.status==='review_required').length;
- const accepted=docs.filter((d:any)=>d.status==='accepted').length;
- const points=useMemo(()=>{
-  const today=new Date().toISOString().slice(0,10);
-  const counts=new Map<string,number>();
-  for(const d of docs){if(d.status!=='missing'&&d.fileName&&/^\d{4}-\d{2}-\d{2}$/.test(d.date||''))counts.set(d.date,(counts.get(d.date)||0)+1)}
-  return Array.from({length:days},(_,i)=>{const date=new Date(today+'T00:00:00Z');date.setUTCDate(date.getUTCDate()-days+1+i);const key=date.toISOString().slice(0,10);return {date:key,count:counts.get(key)||0}});
- },[docs,days]);
- const total=points.reduce((n,p)=>n+p.count,0);
- const max=Math.ceil(Math.max(4,...points.map(p=>p.count))/2)*2;
-
- const recent=[...uploaded].reverse().sort((a:any,b:any)=>(b.date||'').localeCompare(a.date||'')).slice(0,6);
- const dateLabel=(date:string)=>date.slice(8,10)+'.'+date.slice(5,7);
- return <>
-  <PageHeader title="Umumiy ko‘rinish" description="Kompaniyalaringiz va hujjatlaringiz bo‘yicha bugungi holat." actions={<Button onClick={onAdd}><Icon name="plus"/>Kompaniya qo‘shish</Button>}/>
-  <div className="dashboard-stats">
-   {[
-    ['Kompaniyalar',companies.length,'company','Siz boshqarayotgan tashkilotlar'],
-    ['Yuklangan hujjatlar',uploaded.length,'document','Barcha kompaniyalar bo‘yicha'],
-    ['Tekshirish kerak',review,'search','Qaroringizni kutayotgan hujjatlar'],
-    ['Qabul qilingan',accepted,'check','Tekshiruvdan o‘tgan hujjatlar'],
-   ].map(([label,value,icon,hint])=><Card className="metric-card" key={String(label)}><CardHeader><CardDescription>{label}</CardDescription><Icon name={icon} size={18}/></CardHeader><CardContent><strong>{value}</strong><p>{hint}</p></CardContent></Card>)}
-  </div>
-  <Card className="panel activity-panel" aria-labelledby="activity-heading">
-   <CardHeader><div><CardTitle><h2 id="activity-heading">Hujjatlar faolligi</h2></CardTitle><CardDescription>Oxirgi {days} kunda {total} ta hujjat yuklangan</CardDescription></div><ToggleGroup type="single" value={String(days)} onValueChange={v=>{if(v)setDays(Number(v))}} className="range-switch" aria-label="Grafik davri">{[7,30,90].map(d=><ToggleGroupItem key={d} value={String(d)} aria-label={`${d} kun`}>{d} kun</ToggleGroupItem>)}</ToggleGroup></CardHeader><CardContent>
-   <ChartContainer className="activity-chart" config={{count:{label:'Yuklangan hujjatlar',color:'var(--blue)'}}} aria-label={`Oxirgi ${days} kun: ${total} ta hujjat`}>
-    <AreaChart accessibilityLayer data={points} margin={{left:0,right:12,top:16,bottom:0}}>
-     <defs><linearGradient id="activity-blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--color-count)" stopOpacity={0.24}/><stop offset="100%" stopColor="var(--color-count)" stopOpacity={0.02}/></linearGradient></defs>
-     <CartesianGrid vertical={false} strokeDasharray="3 5"/>
-     <XAxis dataKey="date" tickFormatter={dateLabel} tickLine={false} axisLine={false} minTickGap={65} tickMargin={12} fontSize={14}/>
-     <YAxis domain={[0,max]} ticks={[0,max/2,max]} allowDecimals={false} tickLine={false} axisLine={false} width={32} fontSize={14}/>
-     <ChartTooltip content={<ChartTooltipContent labelFormatter={label=>dateLabel(String(label))} />} />
-     <Area dataKey="count" type="linear" fill="url(#activity-blue)" stroke="var(--color-count)" strokeWidth={2} isAnimationActive={false}/>
-    </AreaChart>
-   </ChartContainer></CardContent>
-   <CardFooter><span className="chart-legend"><i/>Yuklangan hujjatlar</span>{!total&&<span>Hujjat yuklaganingizda grafik shu yerda ko‘rinadi.</span>}<Collapsible className="chart-values"><CollapsibleTrigger asChild><Button variant="link">Kunlar bo‘yicha<Icon name="down"/></Button></CollapsibleTrigger><CollapsibleContent>{points.filter(p=>p.count).length?points.filter(p=>p.count).map(p=><p key={p.date}>{dateLabel(p.date)} — {p.count} ta hujjat</p>):<p>Tanlangan davrda hujjat yuklanmagan.</p>}</CollapsibleContent></Collapsible></CardFooter>
+ const [period,setPeriod]=useState(currentPeriod());
+ const [query,setQuery]=useState('');
+ const [expanded,setExpanded]=useState<string|null|undefined>();
+ const rows=useMemo(()=>dashboardRows(companies,docs,period),[companies,docs,period]);
+ const visible=rows.filter((r:any)=>`${r.company.name} ${r.company.stir||''}`.toLowerCase().includes(query.toLowerCase()));
+ const active=expanded===undefined?rows.find((r:any)=>r.analyzed.length)?.company.id:expanded;
+ const totals=rows.reduce((s:any,r:any)=>({uploaded:s.uploaded+r.uploaded.length,total:s.total+r.total,notes:s.notes+r.notes.length,analyzed:s.analyzed+r.analyzed.length}),{uploaded:0,total:0,notes:0,analyzed:0});
+ const percent=totals.total?Math.round(totals.uploaded/totals.total*100):null;
+ const metrics=[
+  {label:'Hujjatlar to‘plami',value:percent===null?'—':`${percent}%`,hint:`${totals.uploaded} / ${totals.total} ta yuklangan`,icon:FileCheck2,tone:'success'},
+  {label:'AI tekshiruvi',value:`${totals.notes} ta izoh`,hint:`${totals.analyzed} ta hujjat tekshirilgan`,icon:Sparkles,tone:totals.notes?'warning':'info'},
+  {label:'Kompaniyalar',value:`${companies.length} ta`,hint:formatPeriod(period),icon:Building2,tone:'info'},
+ ];
+ return <div className="control-dashboard">
+  <PageHeader title="Umumiy ko‘rinish" description="Kompaniyalar, hujjatlar va tekshiruvlar — bir joyda." actions={<><Input type="month" className="period-input" aria-label="Dashboard davri" value={period} min="2000-01" max="2100-12" onChange={e=>{if(/^\d{4}-\d{2}$/.test(e.target.value)){setPeriod(e.target.value);setExpanded(undefined)}}}/><Button onClick={onAdd}><Plus data-icon="inline-start"/>Kompaniya qo‘shish</Button></>}/>
+  <Card className="control-board">
+   <div className="control-metrics">{metrics.map(m=><section key={m.label} className="control-metric" data-tone={m.tone}><div><span className="metric-label">{m.label}</span><div className="metric-value"><strong>{m.value}</strong><span>{m.hint}</span></div></div><span className="metric-symbol"><m.icon aria-hidden="true"/></span></section>)}</div>
+   <div className="control-toolbar"><div className="search-field"><Search aria-hidden="true"/><Input aria-label="Dashboard kompaniyalarini qidirish" placeholder="Kompaniya nomi yoki STIR" value={query} onChange={e=>setQuery(e.target.value)}/></div><p>Tanlangan oy va doimiy hujjatlar</p></div>
+   {visible.length?<div className="control-table"><Table><TableHeader><TableRow><TableHead>Kompaniya / STIR</TableHead> <TableHead>Davr</TableHead><TableHead>Yuklangan</TableHead><TableHead>AI tekshiruvi holati</TableHead><TableHead>Holat</TableHead><TableHead>Amallar</TableHead></TableRow></TableHeader><TableBody>{visible.map((row:any)=>{
+    const tone=row.notes.length?'warning':row.state==='ready'?'success':'info';
+    const open=active===row.company.id;
+    const id=`comparison-${row.company.id}`;
+    return <React.Fragment key={row.company.id}><TableRow className="control-company-row" data-open={open||undefined}>
+     <TableCell><div className="control-company-name"><span className="status-dot" data-tone={tone}/><strong>{row.company.name} {row.company.legal||''}</strong></div><span className="control-tax">STIR: {row.company.stir||'Kiritilmagan'}</span></TableCell>
+     <TableCell className="control-period">{formatPeriod(period)}</TableCell>
+     <TableCell><div className="control-progress" data-tone={row.state==='ready'?'success':'info'}><Progress value={row.received??0} aria-label={`${row.company.name}: ${row.uploaded.length} / ${row.total} ta hujjat yuklangan`}/><span>{row.uploaded.length}/{row.total}</span></div></TableCell>
+     <TableCell><div className="control-ai-status" data-tone={tone}>{row.notes.length?<TriangleAlert aria-hidden="true"/>:row.analyzed.length?<CheckCheck aria-hidden="true"/>:<Clock3 aria-hidden="true"/>}<span>{row.notes.length?`${row.notes.length} ta izoh · ${row.notes[0].title}`:row.analyzed.length?`${row.analyzed.length} ta tekshirilgan · izoh topilmadi`:row.uploaded.length?'Tekshiruv natijasi kutilmoqda':'Hujjat yuklanishini kutmoqda'}</span></div></TableCell>
+     <TableCell><Badge variant="outline" className="control-state" data-tone={row.state==='ready'?'success':row.state==='review'?'warning':'info'}><span className="status-dot"/>{stateLabels[row.state]}</Badge></TableCell>
+     <TableCell><div className="control-row-actions"><Button variant={open?'secondary':'outline'} size="sm" aria-expanded={open} aria-controls={open?id:undefined} onClick={()=>setExpanded(open?null:row.company.id)}>{open?'Yopish':'Solishtirish'}<ChevronDown data-icon="inline-end" className={open?'rotate-180':undefined}/></Button><Button variant="ghost" size="icon" aria-label={`${row.company.name} kompaniyasini ochish`} onClick={()=>onCompany(row.company.id)}><ArrowRight/></Button></div></TableCell>
+    </TableRow>{open&&<TableRow className="control-detail-row"><TableCell colSpan={6} id={id}><Comparison key={row.company.id} row={row} onCompany={onCompany}/></TableCell></TableRow>}</React.Fragment>;
+   })}</TableBody></Table></div>:<Empty><EmptyHeader><EmptyMedia variant="icon"><Building2/></EmptyMedia><EmptyTitle>{companies.length?'Kompaniya topilmadi':'Birinchi kompaniyangizni qo‘shing'}</EmptyTitle><EmptyDescription>{companies.length?'Boshqa nom yoki STIR bilan qidiring.':'Kompaniyalar va hujjatlar holati shu yerda ko‘rinadi.'}</EmptyDescription></EmptyHeader>{!companies.length&&<EmptyContent><Button onClick={onAdd}><Plus data-icon="inline-start"/>Kompaniya qo‘shish</Button></EmptyContent>}</Empty>}
+   <CardFooter className="control-board-footer"><span><ShieldCheck aria-hidden="true"/>Har bir kompaniyaning hujjatlari alohida yuritiladi.</span><span>{companies.length} ta kompaniya · {totals.uploaded} ta hujjat</span></CardFooter>
   </Card>
-  <section className="dashboard-recent" aria-labelledby="recent-heading"><header className="section-heading"><div><h2 id="recent-heading">So‘nggi hujjatlar</h2><p>Barcha kompaniyalaringizdan oxirgi yuklangan fayllar.</p></div></header>
-   <Card className="panel">{recent.length?<div className="recent-table-wrap"><Table><TableHeader><TableRow><TableHead>Hujjat</TableHead><TableHead>Kompaniya</TableHead><TableHead>Holat</TableHead><TableHead>Sana</TableHead><TableHead><span className="sr-only">Amal</span></TableHead></TableRow></TableHeader><TableBody>{recent.map((d:any)=>{const company=companies.find((c:any)=>c.id===d.company);return <TableRow key={d.id}><TableCell><span className="recent-document"><Icon name="document" size={18}/><span>{documentName(d)}</span></span></TableCell><TableCell>{company?.name||'—'}</TableCell><TableCell><Badge variant="outline" className={`badge ${d.status==='review_required'?'review':''}`}>{statuses[d.status]||d.status}</Badge></TableCell><TableCell>{d.date?dateLabel(d.date):'—'}</TableCell><TableCell><Button variant="ghost" size="icon" aria-label={`${documentName(d)} — kompaniyani ochish`} onClick={()=>onCompany(d.company)}><Icon name="arrow" size={16}/></Button></TableCell></TableRow>})}</TableBody></Table></div>:<Empty className="dashboard-empty"><EmptyHeader><EmptyMedia variant="icon"><Icon name="document" size={24}/></EmptyMedia><EmptyTitle>Hali hujjatlar yo‘q</EmptyTitle><EmptyDescription>{companies.length?'Kompaniyani ochib, birinchi hujjatingizni yuklang.':'Avval kompaniya qo‘shing, keyin hujjatlaringizni yuklang.'}</EmptyDescription></EmptyHeader><EmptyContent><Button variant="outline" onClick={companies.length?()=>onCompany(companies[0].id):onAdd}>{companies.length?'Kompaniyani ochish':'Kompaniya qo‘shish'}<Icon name="arrow"/></Button></EmptyContent></Empty>}</Card>
-  </section>
- </>
+ </div>;
 }
