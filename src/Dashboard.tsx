@@ -13,7 +13,7 @@ import {Progress} from './components/ui/progress';
 import {Alert,AlertDescription} from './components/ui/alert';
 import {Empty,EmptyHeader,EmptyMedia,EmptyTitle,EmptyDescription,EmptyContent} from './components/ui/empty';
 import {dashboardRows,comparisonPair} from './dashboard-model.mjs';
-import {currentPeriod,formatPeriod,documentName} from './format.mjs';
+import {currentPeriod,formatPeriod,documentName,companyTitle} from './format.mjs';
 
 const stateLabels={empty:'Hujjat yo‘q',waiting:'Hujjat kutilmoqda',ready:'Qabul qilingan',review:'Tekshirish kerak'};
 const money=(r:any)=>typeof r?.total==='number'?`${new Intl.NumberFormat('uz-UZ').format(r.total)} ${r.currency||''}`:'Aniqlanmagan';
@@ -75,7 +75,7 @@ export function Dashboard({companies,docs,onCompany,onAdd}:any){
     const open=active===row.company.id;
     const id=`comparison-${row.company.id}`;
     return <React.Fragment key={row.company.id}><TableRow className="control-company-row" data-open={open||undefined}>
-     <TableCell><div className="control-company-name"><span className="status-dot" data-tone={tone}/><strong>{row.company.name} {row.company.legal||''}</strong></div><span className="control-tax">STIR: {row.company.stir||'Kiritilmagan'}</span></TableCell>
+     <TableCell><div className="control-company-name"><span className="status-dot" data-tone={tone}/><strong>{companyTitle(row.company)}</strong></div><span className="control-tax">STIR: {row.company.stir||'Kiritilmagan'}</span></TableCell>
      <TableCell className="control-period">{formatPeriod(period)}</TableCell>
      <TableCell><div className="control-progress" data-tone={row.state==='ready'?'success':'info'}><Progress value={row.received??0} aria-label={`${row.company.name}: ${row.uploaded.length} / ${row.total} ta hujjat yuklangan`}/><span>{row.uploaded.length}/{row.total}</span></div></TableCell>
      <TableCell><div className="control-ai-status" data-tone={tone}>{row.notes.length?<TriangleAlert aria-hidden="true"/>:row.analyzed.length?<CheckCheck aria-hidden="true"/>:<Clock3 aria-hidden="true"/>}<span>{row.notes.length?`${row.notes.length} ta izoh · ${row.notes[0].title}`:row.analyzed.length?`${row.analyzed.length} ta tekshirilgan · izoh topilmadi`:row.uploaded.length?'Tekshiruv natijasi kutilmoqda':'Hujjat yuklanishini kutmoqda'}</span></div></TableCell>
