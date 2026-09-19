@@ -1,18 +1,16 @@
 import {useState} from 'react';
-import {Sheet,SheetTrigger,SheetContent,SheetHeader,SheetTitle,SheetDescription,SheetClose} from './components/ui/sheet';
+import {Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription,SheetClose} from './components/ui/sheet';
 import {Button} from './components/ui/button';
 import {Icon} from './Icon';
 import {AIBar,AIReview,AIBadge} from './ai';
 import {eligible} from './ai-domain.mjs';
 import {documentName} from './format.mjs';
 
-export function AIOverlay({company,docs,ai}:any){
- const [open,setOpen]=useState(false),[selected,setSelected]=useState<string|null>(null);
+export function AIOverlay({company,docs,ai,open,onOpenChange}:any){
+ const [selected,setSelected]=useState<string|null>(null);
  const files=docs.filter((d:any)=>d.company===company.id&&eligible(d));
- const pending=files.filter((d:any)=>['queued','processing'].includes(d.ai?.status)).length;
- const doc=files.find((d:any)=>d.id===selected);
- return <Sheet open={open} onOpenChange={value=>{setOpen(value);if(!value)setSelected(null)}}>
-  <SheetTrigger asChild><Button className="ai-overlay-trigger" variant="outline"><Icon name="spark"/>AI tahlil{pending>0&&<span role="status">{pending} ta</span>}</Button></SheetTrigger>
+  const doc=files.find((d:any)=>d.id===selected);
+ return <Sheet open={!!open} onOpenChange={value=>{onOpenChange(value);if(!value)setSelected(null)}}>
   <SheetContent side="bottom" className="ai-overlay-panel" showCloseButton={false}>
    <SheetHeader><div className="ai-overlay-heading"><SheetTitle><Icon name="spark"/>AI tahlil</SheetTitle><SheetClose asChild><Button variant="ghost" size="icon" aria-label="AI panelini yopish"><Icon name="close"/></Button></SheetClose></div><SheetDescription>{company.name} · Avtomatik tekshiruv va hujjat izohlari</SheetDescription></SheetHeader>
    <div className="ai-overlay-body">
