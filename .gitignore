@@ -20,3 +20,4 @@ archive/
 *.sqlite-*
 
 public/landing.js
+public/fonts/

@@ -1,6 +1,6 @@
 import {build} from 'esbuild';
 import {execFileSync} from 'node:child_process';
-import {readFile,writeFile,unlink,mkdir} from 'node:fs/promises';
+import {readFile,writeFile,unlink,mkdir,copyFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {resolve} from 'node:path';
@@ -10,6 +10,10 @@ const options={bundle:true,jsx:'automatic',minify:true,sourcemap:false,target:['
 await build({...options,entryPoints:['src/main.tsx'],outfile:'public/app.js'});
 await build({...options,entryPoints:['src/landing-entry.tsx'],outfile:'public/landing.js'});
 for(const [input,output]of [['src/styles.css','public/style.css'],['src/landing.css','public/landing.css']])execFileSync(process.execPath,['node_modules/@tailwindcss/cli/dist/index.mjs','-i',input,'-o',output,'--minify'],{stdio:'inherit'});
+// Self-hosted Geist (OFL-1.1) comes from the npm package; only the subsets the UI can need are published.
+await mkdir('public/fonts',{recursive:true});
+for(const subset of ['latin','latin-ext','cyrillic'])await copyFile(`node_modules/@fontsource-variable/geist/files/geist-${subset}-wght-normal.woff2`,`public/fonts/Geist-${subset}.woff2`);
+await copyFile('node_modules/@fontsource-variable/geist/LICENSE','public/fonts/Geist-LICENSE.txt');
 await unlink('public/app.js.map').catch(e=>{if(e.code!=='ENOENT')throw e});
 const version=createHash('sha256').update(await readFile('public/app.js')).update(await readFile('public/style.css')).digest('hex').slice(0,12);
 const html=(await readFile('public/index.html','utf8')).replace(/(app\.js|style\.css)(?:\?v=[a-z0-9]+)?/g,`$1?v=${version}`);
