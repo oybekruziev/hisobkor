@@ -85,7 +85,8 @@ const kinds:any={invoice:'Schyot-faktura',contract:'Shartnoma',bank_statement:'B
 export function AIBadge({doc}:any){
  if(!eligible(doc))return null;const status=doc.ai?.status;
  const text=status==='complete'&&validAnalysis(doc)?(doc.ai.result.issues.length?'Avto: izohlar bor':'Avto: tayyor'):status==='processing'?'Tekshirilmoqda…':status==='queued'?'Navbatda':status==='error'?'Tekshiruv xatosi':'Tekshirilmagan';
- return <UiBadge variant="outline" className="ai-badge"><Icon name="spark" size={14}/>{text}</UiBadge>;
+ const state=status==='complete'&&validAnalysis(doc)?(doc.ai.result.issues.length?'issues':'clear'):status==='processing'||status==='queued'?'pending':status==='error'?'error':'idle';
+ return <UiBadge variant="outline" className="ai-badge" data-ai={state}>{state!=='idle'&&<Icon name="spark" size={14}/>}{text}</UiBadge>;
 }
 export function AIBar({ai,docs}:any){
  const files=docs.filter(eligible),done=files.filter(validAnalysis).length,pending=files.filter((d:any)=>['queued','processing'].includes(d.ai?.status)).length;
