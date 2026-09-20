@@ -46,7 +46,7 @@ export function Runtime({children}:any){
     <Button className="full-width" disabled={busy} type="submit">{busy?(registering?'Hisob yaratilmoqda…':'Kirilmoqda…'):(registering?'Hisob yaratish':'Kirish')}<Icon name="arrow"/></Button>
    </form>
    <div className="auth-switch"><span>{registering?'Hisobingiz bormi?':'Hali hisobingiz yo‘qmi?'}</span><Button type="button" variant="link" disabled={busy} onClick={switchMode}>{registering?'Kirish':'Hisob yaratish'}</Button></div>
-  </Card>:<div className="loading-panel" role="status">{error?<><Icon name="alert" size={28}/><h1>Ish joyini ochib bo‘lmadi</h1><p>{error}</p><Button onClick={init}>Qayta urinish</Button></>:<><Skeleton className="loading-skeleton"/><p>Ish joyingiz tayyorlanmoqda…</p></>}</div>}
+  </Card>:<div className="loading-panel" role="status">{error?<><Icon name="alert" size={28}/><h1>Ish joyini ochib bo‘lmadi</h1><p>{error}</p><Button onClick={init}>Qayta urinish</Button></>:<><div className="loading-skeleton-stack" aria-hidden="true"><Skeleton className="loading-line title"/><Skeleton className="loading-line"/><Skeleton className="loading-block"/><Skeleton className="loading-line short"/></div><p>Ish joyingiz tayyorlanmoqda…</p></>}</div>}
   <p className="session-footer">Shaxsiy ish joyingiz.</p>
  </main></div>
 }
