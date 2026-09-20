@@ -1,4 +1,5 @@
 import {Card} from './components/ui/card';
+import {Alert,AlertTitle,AlertDescription} from './components/ui/alert';
 import {Badge as UiBadge} from './components/ui/badge';
 import {Collapsible,CollapsibleTrigger,CollapsibleContent} from './components/ui/collapsible';
 import React,{useEffect,useRef,useState} from 'react';
@@ -90,7 +91,7 @@ export function AIBadge({doc}:any){
 }
 export function AIBar({ai,docs}:any){
  const files=docs.filter(eligible),done=files.filter(validAnalysis).length,pending=files.filter((d:any)=>['queued','processing'].includes(d.ai?.status)).length;
- return <Card className="ai-bar" aria-label="Avtomatik hujjat tekshiruvi"><div className="ai-bar-title"><span className="ai-mark"><Icon name="spark"/></span><div><strong>Avtomatik tekshiruv</strong><p>{ai.connection.loading?'Holat tekshirilmoqda…':ai.connection.connected?pending?`${pending} ta hujjat tekshirilmoqda · ${done} ta tayyor`:`${done} / ${files.length} hujjat tekshirilgan`:'Xizmat hozir mavjud emas; hujjatlarni qo‘lda tekshiring'}</p></div></div>{ai.connection.connected&&<div className="ai-bar-actions"><Button variant="outline" disabled={!ai.ready||ai.running||!files.some((d:any)=>!validAnalysis(d)&&!['queued','processing'].includes(d.ai?.status))} onClick={()=>ai.check(files.filter((d:any)=>!validAnalysis(d)))}><Icon name="spark"/>{ai.running?'Tekshirilmoqda…':'Tekshirishni boshlash'}</Button></div>}{ai.notice&&<p className="ai-notice" role="status">{ai.notice}</p>}</Card>;
+ return <Card className="ai-bar" aria-label="Avtomatik hujjat tekshiruvi"><div className="ai-bar-title"><span className="ai-mark"><Icon name="spark"/></span><div><strong>Avtomatik tekshiruv</strong><p>{ai.connection.loading?'Holat tekshirilmoqda…':ai.connection.connected?pending?`${pending} ta hujjat tekshirilmoqda · ${done} ta tayyor`:`${done} / ${files.length} hujjat tekshirilgan`:'Xizmat hozir mavjud emas; hujjatlarni qo‘lda tekshiring'}</p></div></div>{ai.connection.connected&&<div className="ai-bar-actions"><Button variant="outline" disabled={!ai.ready||ai.running||!files.some((d:any)=>!validAnalysis(d)&&!['queued','processing'].includes(d.ai?.status))} onClick={()=>ai.check(files.filter((d:any)=>!validAnalysis(d)))}><Icon name="spark"/>{ai.running?'Tekshirilmoqda…':'Tekshirishni boshlash'}</Button></div>}{ai.notice&&<p className="ai-notice" role="status">{ai.notice}</p>}{!ai.connection.loading&&!ai.connection.connected&&<Alert className="neutral-note ai-offline"><Icon name="alert"/><AlertDescription>Avtomatik tekshiruv hozir ishlamayapti. Hujjatlarni odatdagidek qo‘lda tekshirib, qaror berishingiz mumkin.</AlertDescription></Alert>}</Card>;
 }
 export function AIReview({doc,docs,company,ai,onRelated}:any){
  if(!eligible(doc))return null;

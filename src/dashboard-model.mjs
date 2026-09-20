@@ -19,6 +19,21 @@ export function dashboardRows(companies,docs,period){
    received:required.length?Math.round(uploaded.length/required.length*100):null};
  });
 }
+/** Documents waiting for the accountant's decision, across every company, newest first. */
+export function waitingForReview(companies,docs,period){
+ const byId=new Map(companies.map(c=>[c.id,c]));
+ return docs
+  .filter(d=>d.status==='review_required'&&!d.demo&&byId.has(d.company)&&(d.scope==='permanent'||d.period===period))
+  .map(d=>({doc:d,company:byId.get(d.company)}))
+  .sort((a,b)=>String(b.doc.date||'').localeCompare(String(a.doc.date||''))||String(a.doc.title||'').localeCompare(String(b.doc.title||'')));
+}
+/** Plain-language headline for the home screen: what is waiting, and for how many companies. */
+export function workspaceHeadline(waiting){
+ if(!waiting.length)return {tone:'calm',title:'Hammasi joyida',text:'Hozircha tekshiruvingizni kutayotgan hujjat yo‘q.'};
+ const companies=new Set(waiting.map(x=>x.company.id)).size;
+ return {tone:'attention',title:`${waiting.length} ta hujjat tekshiruvingizni kutmoqda`,
+  text:companies===1?`${waiting[0].company.name} bo‘yicha. Hujjatni oching va qaror bering.`:`${companies} ta kompaniya bo‘yicha. Hujjatni oching va qaror bering.`};
+}
 export function comparisonPair(row,documentId){
  const primary=row.analyzed.find(d=>d.id===documentId)||row.analyzed.find(d=>d.ai.result.kind==='invoice')||row.analyzed[0];
  const linked=primary?compareDocument(primary,row.all,row.company).find(n=>n.relatedId):null;

@@ -1,139 +1,164 @@
 import React from 'react';
-import {Button} from './components/ui/button';
-import {Badge} from './components/ui/badge';
-import {Sheet,SheetClose,SheetContent,SheetHeader,SheetTitle,SheetTrigger} from './components/ui/sheet';
 import {Brand} from './components/Brand';
-import {Icon} from './Icon';
+import {MobileMenu} from './components/landing/MobileMenu';
+import {WorkspacePreview} from './components/landing/WorkspacePreview';
+import {useReveal,useWordReveal} from './components/landing/motion';
+import {ArrowRight,CaretDown,FileText,CloudArrowUp,SealCheck,Check} from './components/landing/icons';
 
 const app='https://app.hisobkor.uz';
-const links=[['#imkoniyatlar','Imkoniyatlar'],['#tartib','Qanday ishlaydi'],['#savollar','Savol-javob']] as const;
+const register=`${app}/#register`;
+const links=[['#nega','Nega kerak'],['#imkoniyatlar','Imkoniyatlar'],['#tartib','Qanday ishlaydi'],['#savollar','Savol-javob']] as const;
 
-function StartButton({children='Hisob yaratish',className,primary=false}:{children?:React.ReactNode;className?:string;primary?:boolean}){
-  return <Button asChild variant={primary?'default':'outline'} className={`site-cta ${className||''}`}>
-    <a href={`${app}/#register`}>{children}<Icon name="arrow"/></a>
-  </Button>;
+function StartCta({className='',children='Hisob yaratish'}:{className?:string;children?:React.ReactNode}){
+  return <a className={`cta ${className}`} href={register}>{children}<ArrowRight size={18} weight="bold"/></a>;
 }
 
-function MobileNav(){
-  return <Sheet>
-    <SheetTrigger asChild>
-      <Button variant="outline" size="icon" className="mobile-menu" aria-label="Menyuni ochish"><Icon name="menu" size={20}/></Button>
-    </SheetTrigger>
-    <SheetContent side="right" className="mobile-sheet">
-      <SheetHeader><SheetTitle><Brand href="/"/></SheetTitle></SheetHeader>
-      <nav aria-label="Mobil navigatsiya">
-        {links.map(([href,label])=><SheetClose asChild key={href}><a href={href}>{label}<Icon name="arrow" size={16}/></a></SheetClose>)}
-      </nav>
-      <div className="mobile-sheet-actions">
-        <Button asChild variant="outline"><a href={app}>Kirish</a></Button>
-        <StartButton primary/>
-      </div>
-    </SheetContent>
-  </Sheet>;
-}
-
-const previewDocs=[
-  ['Schyot-faktura № 024','Izohlar tayyor','Tekshirish kerak','review'],
-  ['Xizmat ko‘rsatish shartnomasi','Tekshirildi','Qabul qilingan','accepted'],
-  ['Bank ko‘chirmasi','Tekshirildi','Qabul qilingan','accepted'],
+const facts=[
+  [FileText,'PDF, JPG, PNG, XLSX, CSV'],
+  [CloudArrowUp,'Har bir fayl 25 MBgacha'],
+  [SealCheck,'Qarorni har doim buxgalter beradi'],
 ] as const;
 
-const previewStats=[['Jami hujjatlar','3'],['Tekshirish kerak','1'],['Qabul qilingan','2']] as const;
-
-function WorkspacePreview(){
-  return <figure className="product-preview">
-    <figcaption><span>Platforma ko‘rinishi</span><Badge variant="outline">Namuna ma’lumotlar</Badge></figcaption>
-    <div className="workspace-preview" role="img" aria-label="Hisobkor ish joyi namunasi: Atlas Savdo kompaniyasining uchta hujjati, biri tekshirishni kutmoqda.">
-      <div className="preview-head">
-        <div>
-          <strong>Hujjatlar</strong>
-          <span>Atlas Savdo · Oylik hujjatlar</span>
-        </div>
-      </div>
-      <dl className="preview-stats">
-        {previewStats.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-      </dl>
-      <ul className="preview-rows">
-        {previewDocs.map(([name,review,status,tone])=><li key={name}>
-          <span className="preview-row-name">{name}</span>
-          <span className="preview-row-meta">PDF hujjat · {review}</span>
-          <span className="preview-chip" data-tone={tone}>{status}</span>
-        </li>)}
-      </ul>
-      <p className="preview-note">Har bir hujjat yonida yordamchi xulosa: rekvizitlarni solishtiring, izohlarni ko‘ring va qaror bering.</p>
+function Tagline(){
+  const ref=React.useRef<HTMLParagraphElement>(null);
+  useWordReveal(ref);
+  const lines=['Hujjatni qidirishga emas,','tekshirishga vaqt ajrating.'];
+  let index=0;
+  return <section className="tagline-section" aria-label="Hisobkorning vazifasi">
+    <div className="wrap">
+      <p className="tagline" ref={ref}>
+        {lines.map(line=><span className="tagline-line" key={line}>
+          {line.split(' ').map(word=><span className="tagline-word" key={`${word}-${index++}`}>{word} </span>)}
+        </span>)}
+      </p>
     </div>
-  </figure>;
+  </section>;
 }
 
-const capabilities=[
-  ['Har bir kompaniya o‘z joyida','Kompaniyani tanlang va uning hujjatlari, rekvizitlari hamda amallar tarixini darhol ko‘ring.'],
-  ['Tekshiruvga yordamchi','Rekvizitlarni ajrating, hujjatlarni solishtiring va AI izohlarini bir oynada ko‘ring.'],
-  ['Qarorlar saqlanadi','Kim, qachon va qanday qaror berganini tarixdan toping.'],
+const pains=[
+  'Fayllar Telegram, pochta va qog‘ozda tarqoq turadi.',
+  'Qaysi hujjat kelgani va qaysi biri hali tekshirilmagani ko‘rinmaydi.',
+  'Qaysi hujjatni kim va qachon qabul qilgani esdan chiqadi.',
+];
+
+const gains=[
+  'Har bir kompaniyaning hujjatlari o‘z joyida: oylik va doimiy hujjatlar alohida.',
+  'Ro‘yxatda holat ko‘rinib turadi: tekshirish kerak yoki qabul qilingan.',
+  'Har bir qaror saqlanadi: kim, qachon va nima qilgani.',
+];
+
+const benefits=[
+  ['Bitta hisob, bir nechta kompaniya','Kompaniyani tanlaysiz va uning hujjatlari, rekvizitlari hamda amallar tarixini darhol ko‘rasiz.'],
+  ['Tekshiruvda yordamchi izoh','AI hujjatni o‘qib izoh qoldiradi. Qabul qilish yoki sabab yozib qaytarish sizning qaroringiz bo‘lib qoladi.'],
+  ['Davrni ishonch bilan yopasiz','Oylik hujjatlar va ustav, guvohnoma, shartnomalar alohida turadi. Barcha talablar bajarilganda davrni yopasiz.'],
+  ['Fayllar yopiq saqlanadi','Hujjatlar faqat sizning hisobingiz orqali ochiladi. Avtomatik tekshiruv vaqtida hujjat mazmuni AI tahlil xizmatiga yuboriladi.'],
+  ['Telefonda ham, kompyuterda ham','Telefon, planshet va kompyuterda bir xil ishlaydi. Kompaniyalar va fayllar zaxirasini ilovadan yuklab olasiz.'],
 ] as const;
 
 const steps=[
-  ['Profilingizni to‘ldiring','Hisob yarating va buxgalter ma’lumotlaringizni kiriting.'],
-  ['Kompaniya qo‘shing','Tashkilot nomini kiriting — qolgan ma’lumotlarni keyin to‘ldirasiz.'],
+  ['Profilingizni to‘ldiring','Login va parol bilan hisob yarating, so‘ng buxgalter ma’lumotlaringizni kiriting.'],
+  ['Kompaniya qo‘shing','Faqat tashkilot nomi kerak. Rekvizitlarni keyinroq to‘ldirasiz.'],
   ['Hujjatlar bilan ishlang','Fayllarni yuklang, izohlarni ko‘ring va qaroringizni belgilang.'],
 ] as const;
 
-export const questions=[['Bir nechta kompaniya bilan ishlasam bo‘ladimi?','Ha. Bitta hisobga bir nechta kompaniya qo‘shasiz. Har birining hujjatlari, rekvizitlari va amallar tarixi alohida saqlanadi.'],['Ishni qanday boshlayman?','Login va parol bilan hisob yarating, buxgalter profilingizni to‘ldiring va birinchi kompaniyangizni qo‘shing.'],['Qaysi fayllarni yuklash mumkin?','PDF, JPG, PNG, XLSX va CSV fayllari. Har bir fayl 25 MBgacha bo‘lishi mumkin.'],['AI hujjatni o‘zi qabul qiladimi?','Yo‘q. AI hujjatni o‘qiydi va yordamchi izoh beradi. Qarorni buxgalter qabul qiladi.'],['Hujjatlarim hammaga ochiq bo‘ladimi?','Yo‘q. Fayllar yopiq saqlanadi va hisobingiz orqali ochiladi. Avtomatik tekshiruv vaqtida hujjat mazmuni AI tahlil xizmatiga yuboriladi.']];
+export const questions=[
+  ['Ishni qanday boshlayman?','Login va parol bilan hisob yaratasiz. Parol kamida 12 belgidan iborat bo‘lishi kerak, elektron pochtani tasdiqlash bosqichi yo‘q. So‘ng profilingizni to‘ldirasiz va birinchi kompaniyangizni qo‘shasiz.'],
+  ['Bir nechta kompaniya bilan ishlasam bo‘ladimi?','Ha. Bitta hisobga bir nechta kompaniya qo‘shasiz. Har birining hujjatlari, rekvizitlari va amallar tarixi alohida saqlanadi.'],
+  ['Qaysi fayllarni yuklash mumkin?','PDF, JPG, PNG, XLSX va CSV fayllari. Har bir fayl 25 MBgacha bo‘lishi mumkin.'],
+  ['AI hujjatni o‘zi qabul qiladimi?','Yo‘q. AI hujjatni o‘qiydi va yordamchi izoh qoldiradi. Qarorni buxgalter beradi: hujjatni qabul qiladi yoki sabab yozib qaytaradi.'],
+  ['Hujjatlarim maxfiyligi qanday?','Fayllar yopiq saqlanadi va faqat sizning hisobingiz orqali ochiladi. Avtomatik tekshiruv vaqtida hujjat mazmuni AI tahlil xizmatiga yuboriladi.'],
+  ['Oylik va doimiy hujjatlar qanday ajratiladi?','Oylik, ya’ni davr hujjatlari va doimiy hujjatlar (ustav, guvohnoma, shartnomalar) alohida saqlanadi. Davrni barcha talablar bajarilganda yopasiz.'],
+  ['Qaror tarixini keyin ko‘ra olamanmi?','Ha. Har bir qaror saqlanadi: kim, qachon va nima qilgani kompaniyaning amallar tarixida turadi.'],
+  ['Ma’lumotlarimni yuklab olsam bo‘ladimi?','Ha. Kompaniyalar va fayllar zaxirasini ilovaning ichidan yuklab olasiz.'],
+  ['Telefonda ishlaydimi?','Ha. Hisobkor telefon, planshet va kompyuterda ishlaydi.'],
+] as [string,string][];
 
 export function Landing(){
+  useReveal();
   return <>
-    <a className="site-skip" href="#main">Asosiy qismga o‘tish</a>
+    <a className="skip" href="#main">Asosiy qismga o‘tish</a>
 
     <header className="site-header">
-      <div className="header-inner site-wrap">
+      <div className="header-bar">
         <Brand href="/"/>
         <nav className="desktop-nav" aria-label="Asosiy navigatsiya">
           {links.map(([href,label])=><a href={href} key={href}>{label}</a>)}
         </nav>
-        <div className="header-actions">
-          <Button asChild variant="ghost" className="header-login"><a href={app}>Kirish</a></Button>
-          <StartButton primary className="header-cta"/>
-          <MobileNav/>
-        </div>
+        <a className="header-login" href={app}>Kirish</a>
+        <StartCta className="cta-sm header-cta"/>
+        <MobileMenu links={links} app={app}/>
       </div>
     </header>
 
-    <main id="main" className="isolate antialiased">
+    <main id="main">
       <section className="hero">
-        <div className="site-wrap hero-inner">
+        <div className="wrap hero-grid">
           <div className="hero-copy">
-            <Badge variant="outline" className="hero-eyebrow">Buxgalterning ish joyi</Badge>
-            <h1>Hujjatlarni <em>nazorat</em> qilish uchun bitta joy.</h1>
-            <p>Kompaniyalar, hujjatlar va tekshiruvlar — bitta tartibli ish joyida. Qidirishga kamroq, hisobga ko‘proq vaqt ajrating.</p>
+            <h1>
+              <span>Mijoz hujjatlari bitta joyda.</span>
+              <span>Qarorni siz berasiz.</span>
+            </h1>
+            <p className="hero-sub">Hisobkor buxgalterlar uchun ish joyi. Har bir kompaniyaning hujjatlari, tekshiruv izohlari va qaror tarixi bir tartibda turadi.</p>
             <div className="hero-actions">
-              <StartButton primary>Ishni boshlash</StartButton>
-              <Button asChild variant="outline" className="site-cta"><a href="#tartib">Qanday ishlaydi</a></Button>
+              <StartCta className="cta-lg"/>
+              <p className="hero-risk">Login va parol kifoya. Kompaniya qo‘shish uchun faqat nom kerak.</p>
             </div>
-            <small>Avval profilingiz, keyin kompaniyangiz, so‘ng hujjatlar.</small>
           </div>
+          <ul className="facts">
+            {facts.map(([Glyph,text])=><li key={text}><Glyph size={18} aria-hidden="true"/>{text}</li>)}
+          </ul>
           <WorkspacePreview/>
         </div>
       </section>
 
-      <section className="site-section" id="imkoniyatlar">
-        <div className="site-wrap section-grid">
-          <div className="section-intro">
-            <span>Imkoniyatlar</span>
-            <h2>Kundalik ishda kerak bo‘ladigani.</h2>
+      <Tagline/>
+
+      <section className="section" id="nega">
+        <div className="wrap">
+          <div className="section-head" data-reveal>
+            <p className="eyebrow">Nega kerak</p>
+            <h2>Hujjatlar tarqoq kelsa, nazorat sizdan chiqib ketadi.</h2>
           </div>
-          <dl className="capability-list">
-            {capabilities.map(([title,text])=><div key={title}><dt>{title}</dt><dd>{text}</dd></div>)}
+          <div className="compare" data-reveal>
+            <div className="compare-card">
+              <h3>Odatdagi kun</h3>
+              <ul className="pain-list">
+                {pains.map(text=><li key={text}>{text}</li>)}
+              </ul>
+            </div>
+            <div className="compare-card compare-card-good">
+              <h3>Hisobkor bilan</h3>
+              <ul className="gain-list">
+                {gains.map(text=><li key={text}><Check size={18} weight="bold" aria-hidden="true"/><span>{text}</span></li>)}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section" id="imkoniyatlar">
+        <div className="wrap">
+          <div className="section-head" data-reveal>
+            <p className="eyebrow">Imkoniyatlar</p>
+            <h2>Kundalik ishda nimaga tayanasiz.</h2>
+          </div>
+          <dl className="benefits">
+            {benefits.map(([title,text])=><div className="benefit" key={title} data-reveal>
+              <dt>{title}</dt>
+              <dd>{text}</dd>
+            </div>)}
           </dl>
         </div>
       </section>
 
-      <section className="site-section" id="tartib">
-        <div className="site-wrap">
-          <div className="section-intro section-intro-wide">
-            <span>Qanday ishlaydi</span>
+      <section className="section" id="tartib">
+        <div className="wrap">
+          <div className="section-head" data-reveal>
+            <p className="eyebrow">Qanday ishlaydi</p>
             <h2>Uch qadamda ishga tayyor.</h2>
           </div>
           <ol className="steps">
-            {steps.map(([title,text],i)=><li key={title}>
+            {steps.map(([title,text],i)=><li key={title} data-reveal>
               <span className="step-num" aria-hidden="true">{i+1}</span>
               <h3>{title}</h3>
               <p>{text}</p>
@@ -142,42 +167,39 @@ export function Landing(){
         </div>
       </section>
 
-      <section className="site-section" id="savollar">
-        <div className="site-wrap section-grid">
-          <div className="section-intro">
-            <span>Savol-javob</span>
+      <section className="section" id="savollar">
+        <div className="wrap">
+          <div className="section-head" data-reveal>
+            <p className="eyebrow">Savol-javob</p>
             <h2>Ish boshlashdan oldin.</h2>
-            <p>Hisobkor haqida qisqa javoblar.</p>
           </div>
-          <div className="faq-list">
+          <div className="faq" data-reveal>
             {questions.map(([question,answer])=><details key={question} name="faq">
-              <summary><span>{question}</span><Icon name="down" size={18}/></summary>
+              <summary><span>{question}</span><CaretDown size={18} aria-hidden="true"/></summary>
               <div className="faq-answer"><p>{answer}</p></div>
             </details>)}
           </div>
         </div>
       </section>
 
-      <section className="final-cta-section">
-        <div className="site-wrap">
-          <div className="final-cta">
-            <div>
-              <span>Ishni boshlash</span>
-              <h2>Keyingi ish kuningizni tartib bilan boshlang.</h2>
-            </div>
-            <StartButton primary>Hisob yaratish</StartButton>
+      <section className="section final-section">
+        <div className="wrap">
+          <div className="final" data-reveal>
+            <h2>Keyingi ish kuningizni tartib bilan boshlang.</h2>
+            <p>Hisob yarating, birinchi kompaniyangizni qo‘shing va hujjatlarni bir joyda yuriting.</p>
+            <StartCta className="cta-lg"/>
           </div>
         </div>
       </section>
     </main>
 
-    <footer className="site-footer">
-      <div className="site-wrap footer-inner">
+    <footer className="site-footer" id="site-footer">
+      <div className="wrap footer-inner">
         <div className="footer-brand">
           <Brand href="/"/>
           <p>Buxgalteriya, tartib bilan.</p>
         </div>
-        <Button asChild variant="ghost" className="footer-link"><a href={app}>Platformaga kirish<Icon name="arrow"/></a></Button>
+        <a className="footer-link" href={app}>Platformaga kirish<ArrowRight size={16} weight="bold"/></a>
       </div>
     </footer>
   </>;
