@@ -26,6 +26,12 @@ class Statement {
       const row = this.db.workspaces.get(this.args[0]);
       return row?.account_id === this.args[1] ? {revision: row.revision} : null;
     }
+    if (this.sql.startsWith('INSERT INTO login_limits')) {
+      this.db.limits ||= new Map();
+      const attempts = (this.db.limits.get(this.args[0]) || 0) + 1;
+      this.db.limits.set(this.args[0], attempts);
+      return {attempts};
+    }
     throw new Error(`Unhandled first: ${this.sql}`);
   }
   async all() {
@@ -182,4 +188,21 @@ test('migration contains every tenant and asynchronous job boundary', async () =
   for (const table of ['accounts', 'workspaces', 'sessions', 'login_limits', 'file_versions', 'ai_jobs']) assert.match(sql, new RegExp(`CREATE TABLE ${table}`));
   assert.match(sql, /UNIQUE INDEX file_logical_immutable/);
   assert.match(sql, /UNIQUE[\s\S]*dedupe_key|dedupe_key TEXT NOT NULL UNIQUE/);
+});
+
+test('MSFO endpoint: needs the managed key, validates input, and enforces a daily per-account budget', async () => {
+  const f = await fixture();
+  const call = (body, env = f.env) => f.worker.fetch(new Request('https://app.hisobkor.uz/api/msfo', {method: 'POST', headers: {Cookie: `__Host-mezon_session=${f.token1}`, Origin: 'https://app.hisobkor.uz', 'X-Mezon-Request': '1', 'Content-Type': 'application/json'}, body: JSON.stringify(body)}), env, f.ctx);
+  assert.equal((await call({mode: 'text', source: '<p>a</p>'})).status, 503);
+  const env = {...f.env, OPENAI_API_KEY: 'sk-test', OPENAI_MODEL: 'm', AI_MAX_DAILY_MSFO: '2'};
+  assert.equal((await call({mode: 'nope', source: 'a'}, env)).status, 400);
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({status: 'completed', output: [{content: [{type: 'output_text', text: JSON.stringify({title: 't', summary: 's', documentHtml: '<p>x</p>', changes: [], limitations: []})}]}]}));
+  try {
+    const ok = await call({mode: 'text', source: '<p>a</p>'}, env);
+    assert.equal(ok.status, 200);
+    assert.equal((await ok.json()).result.documentHtml, '<p>x</p>');
+    assert.equal((await call({mode: 'text', source: '<p>a</p>'}, env)).status, 200);
+    assert.equal((await call({mode: 'text', source: '<p>a</p>'}, env)).status, 429);
+  } finally { globalThis.fetch = original; }
 });
