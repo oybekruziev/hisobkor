@@ -157,6 +157,15 @@ test('apex static allowlist serves landing assets and rejects unrelated files', 
   response = await f.worker.fetch(new Request('https://hisobkor.uz/landing.js'), f.env, f.ctx);
   assert.equal(response.status, 200);
   assert.equal(await response.text(), '/landing.js');
+  for (const name of ['overview', 'documents', 'msfo']) {
+    const pathname = `/shots/${name}.webp`;
+    const image = await readFile(new URL(`../public${pathname}`, import.meta.url));
+    assert.equal(image.subarray(0, 4).toString(), 'RIFF');
+    assert.equal(image.subarray(8, 12).toString(), 'WEBP');
+    response = await f.worker.fetch(new Request(`https://hisobkor.uz${pathname}`), f.env, f.ctx);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), pathname);
+  }
   for (const host of ['hisobkor.uz', 'app.hisobkor.uz']) {
     response = await f.worker.fetch(new Request(`https://${host}/fonts/Geist-latin.woff2`), f.env, f.ctx);
     assert.equal(response.status, 200);
