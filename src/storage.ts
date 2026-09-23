@@ -30,7 +30,7 @@ export async function saveState(state:any){
  writes=result;return result;
 }
 function db():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{const r=indexedDB.open('mezon-preview-files',1);r.onupgradeneeded=()=>r.result.createObjectStore('files');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
-const mime=(name:string)=>({pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',csv:'text/csv'}[name.split('.').pop()!.toLowerCase()]||'application/octet-stream');
+const mime=(name:string)=>({pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',csv:'text/csv',json:'application/json'}[name.split('.').pop()!.toLowerCase()]||'application/octet-stream');
 export async function putFile(id:string,file:File){
  if(mode==='server'){await request('/api/files/'+encodeURIComponent(id),{method:'PUT',headers:{'Content-Type':mime(file.name)},body:file});return;}
  const d=await db();return new Promise<void>((resolve,reject)=>{const tx=d.transaction('files','readwrite');tx.objectStore('files').put(file,id);tx.oncomplete=()=>{d.close();resolve()};tx.onerror=tx.onabort=()=>{d.close();reject(tx.error||Error('Fayl saqlanmadi.'))};});
