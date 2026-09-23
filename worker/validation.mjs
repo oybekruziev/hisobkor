@@ -6,6 +6,7 @@ export const FILE_TYPES = new Map([
   ['image/jpeg', 'jpg'],
   ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'xlsx'],
   ['text/csv', 'csv'],
+  ['application/json', 'json'],
 ]);
 
 export function validFileId(id) {
@@ -47,6 +48,16 @@ export function validateWorkspaceState(state) {
     for (const key of ['email', 'workspace']) if (key in state.profile && !text(state.profile[key], 240, false)) throw new Error('Profil maydoni yaroqsiz.');
   }
   if ('aiAuto' in state && typeof state.aiAuto !== 'boolean') throw new Error('AI sozlamasi yaroqsiz.');
+  if ('msfo' in state) {
+    if (!Array.isArray(state.msfo) || state.msfo.length > 5_000) throw new Error('MSFO ro‘yxati yaroqsiz.');
+    const ids = new Set();
+    for (const item of state.msfo) {
+      if (!item || typeof item !== 'object' || Array.isArray(item) || !validFileId(item.id) || ids.has(item.id) || !text(item.title, 240) || !['statements', 'text'].includes(item.mode)) throw new Error('MSFO hujjati yaroqsiz.');
+      if (item.fileKey != null && !validFileId(item.fileKey)) throw new Error('MSFO fayl kaliti yaroqsiz.');
+      if (item.companyId != null && !companyIds.has(item.companyId)) throw new Error('MSFO kompaniyasi topilmadi.');
+      ids.add(item.id);
+    }
+  }
 }
 
 export function validateFile(bytes, contentType) {
@@ -61,6 +72,12 @@ export function validateFile(bytes, contentType) {
   if (type === 'text/csv') {
     if (bytes.includes(0)) throw new Error('CSV fayli yaroqsiz.');
     try { new TextDecoder('utf-8', {fatal: true}).decode(bytes); } catch { throw new Error('CSV UTF-8 formatida bo‘lishi kerak.'); }
+  }
+  // MSFO editor documents are stored as JSON (never as HTML, so the file endpoint cannot serve markup).
+  if (type === 'application/json') {
+    let value;
+    try { value = JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(bytes)); } catch { throw new Error('JSON fayli yaroqsiz.'); }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('JSON fayli yaroqsiz.');
   }
   return type;
 }

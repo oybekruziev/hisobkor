@@ -1,11 +1,12 @@
 import {randomToken, sha256Hex, verifyPassword, pbkdf2, bytesToHex} from './crypto.mjs';
+import {runMsfo, validateMsfoRequest} from '../msfo-service.mjs';
 import {eligibleDocument, MAX_FILE_BYTES, MAX_WORKSPACE_BYTES, safeDocumentName, validFileId, validateFile, validateWorkspaceState} from './validation.mjs';
 
 const SESSION_COOKIE = '__Host-mezon_session';
 const SESSION_SECONDS = 12 * 60 * 60;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const STATIC_APP = new Set(['/', '/index.html', '/app.js', '/style.css', '/favicon.svg', '/brand-h.png', '/fonts/Geist-latin.woff2', '/fonts/Geist-latin-ext.woff2', '/fonts/Geist-cyrillic.woff2']);
-const STATIC_LANDING = new Map([['/', '/landing.html'], ['/landing.html', '/landing.html'], ['/landing.css', '/landing.css'], ['/landing.js', '/landing.js'], ['/favicon.svg', '/favicon.svg'], ['/brand-h.png', '/brand-h.png'], ['/og-image.png', '/og-image.png'], ['/sitemap.xml', '/sitemap.xml'], ['/fonts/Geist-latin.woff2', '/fonts/Geist-latin.woff2'], ['/fonts/Geist-latin-ext.woff2', '/fonts/Geist-latin-ext.woff2'], ['/fonts/Geist-cyrillic.woff2', '/fonts/Geist-cyrillic.woff2']]);
+const STATIC_LANDING = new Map([['/', '/landing.html'], ['/landing.html', '/landing.html'], ['/landing.css', '/landing.css'], ['/landing.js', '/landing.js'], ['/favicon.svg', '/favicon.svg'], ['/brand-h.png', '/brand-h.png'], ['/og-image.png', '/og-image.png'], ['/shots/overview.webp', '/shots/overview.webp'], ['/shots/documents.webp', '/shots/documents.webp'], ['/shots/msfo.webp', '/shots/msfo.webp'], ['/sitemap.xml', '/sitemap.xml'], ['/fonts/Geist-latin.woff2', '/fonts/Geist-latin.woff2'], ['/fonts/Geist-latin-ext.woff2', '/fonts/Geist-latin-ext.woff2'], ['/fonts/Geist-cyrillic.woff2', '/fonts/Geist-cyrillic.woff2']]);
 const securityHeaders = {
   'Content-Security-Policy': "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; frame-src 'self' blob:; connect-src 'self' https://cloudflareinsights.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
@@ -320,6 +321,23 @@ async function getJob(auth, jobId, env) {
   return json(result);
 }
 
+/** MSFO conversion runs inline (no queue): the user waits in the editor. A per-account daily budget caps cost. */
+async function msfo(request, auth, env) {
+  if (!env.OPENAI_API_KEY) throw new HttpError(503, 'AI xizmati sozlanmagan.');
+  const body = await readJSON(request, 640 * 1024);
+  try { validateMsfoRequest(body); } catch (error) { throw new HttpError(400, error.message); }
+  const now = nowMs();
+  const day = 24 * 60 * 60 * 1000;
+  const limit = Math.max(1, Math.min(500, Number(env.AI_MAX_DAILY_MSFO) || 60));
+  const bucket = await sha256Hex(`msfo:${auth.accountId}:${Math.floor(now / day)}`);
+  const row = await env.DB.prepare(`INSERT INTO login_limits(bucket, attempts, expires_at) VALUES(?, 1, ?)
+    ON CONFLICT(bucket) DO UPDATE SET attempts=login_limits.attempts+1
+    RETURNING attempts`).bind(bucket, now + day).first();
+  if (!row || Number(row.attempts) > limit) throw new HttpError(429, 'Bugungi MSFO AI limiti tugadi. Ertaga qayta urinib ko‘ring.');
+  try { return json({result: await runMsfo(body, {key: env.OPENAI_API_KEY, model: env.OPENAI_MODEL || 'gpt-5.6-luna'})}); }
+  catch (error) { throw new HttpError(502, error?.name === 'TimeoutError' ? 'AI javobi juda uzoq kechikdi. Hujjatni qismlarga bo‘lib ko‘ring.' : (error?.message || 'AI so‘rovi bajarilmadi.')); }
+}
+
 async function serveAsset(request, env, pathname) {
   const response = await env.ASSETS.fetch(new Request(new URL(pathname, request.url), request));
   const headers = new Headers(response.headers);
@@ -378,6 +396,7 @@ export function createWorker() {
         if (fileMatch && request.method === 'PUT') return await putFile(request, auth, decodeURIComponent(fileMatch[1]), env);
         if (request.method === 'GET' && url.pathname === '/api/ai/status') return json({connected: !!env.OPENAI_API_KEY, managed: true, background: true});
         if (request.method === 'POST' && url.pathname === '/api/ai/analyze') return await analyze(request, auth, env);
+        if (request.method === 'POST' && url.pathname === '/api/msfo') return await msfo(request, auth, env);
         const jobMatch = url.pathname.match(/^\/api\/ai\/jobs\/([^/]+)$/);
         if (jobMatch && request.method === 'GET') return await getJob(auth, decodeURIComponent(jobMatch[1]), env);
         return fail(404, 'API manzili topilmadi.');
