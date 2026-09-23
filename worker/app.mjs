@@ -1,5 +1,6 @@
 import {randomToken, sha256Hex, verifyPassword, pbkdf2, bytesToHex} from './crypto.mjs';
 import {runMsfo, validateMsfoRequest} from '../msfo-service.mjs';
+import {handleAdmin, isAdminUser} from './admin.mjs';
 import {eligibleDocument, MAX_FILE_BYTES, MAX_WORKSPACE_BYTES, safeDocumentName, validFileId, validateFile, validateWorkspaceState} from './validation.mjs';
 
 const SESSION_COOKIE = '__Host-mezon_session';
@@ -93,7 +94,7 @@ async function session(request, env, ctx) {
   const token = cookies(request)[SESSION_COOKIE];
   if (!token || !/^[A-Za-z0-9_-]{40,64}$/.test(token)) return null;
   const tokenHash = await sha256Hex(token);
-  const row = await env.DB.prepare(`SELECT s.account_id, s.expires_at, a.workspace_id
+  const row = await env.DB.prepare(`SELECT s.account_id, s.expires_at, a.workspace_id, a.username
     FROM sessions s JOIN accounts a ON a.id=s.account_id
     WHERE s.token_hash=? AND a.disabled=0`).bind(tokenHash).first();
   const now = nowMs();
@@ -102,7 +103,7 @@ async function session(request, env, ctx) {
     return null;
   }
   ctx.waitUntil(env.DB.prepare('UPDATE sessions SET expires_at=?, last_seen_at=? WHERE token_hash=?').bind(now + SESSION_SECONDS * 1000, now, tokenHash).run());
-  return {accountId: row.account_id, workspaceId: row.workspace_id, tokenHash};
+  return {accountId: row.account_id, workspaceId: row.workspace_id, tokenHash, username: row.username, admin: isAdminUser(env, row.username)};
 }
 
 async function rateLimitLogin(request, env, scope = '') {
@@ -371,7 +372,7 @@ export function createWorker() {
         }
         if (request.method === 'GET' && url.pathname === '/api/session') {
           const auth = await session(request, env, ctx);
-          return json({authenticated: !!auth, mode: 'production', storage: 'server'});
+          return json({authenticated: !!auth, mode: 'production', storage: 'server', ...(auth?.admin ? {admin: true, username: auth.username} : {})});
         }
         if (request.method === 'POST' && url.pathname === '/api/login') {
           if (!mutationAllowed(request, env)) return fail(403, 'Ruxsat berilmagan so‘rov.');
@@ -389,6 +390,8 @@ export function createWorker() {
           await env.DB.prepare('DELETE FROM sessions WHERE token_hash=? AND account_id=?').bind(auth.tokenHash, auth.accountId).run();
           return json({authenticated: false}, 200, {'Set-Cookie': clearCookie()});
         }
+        const admin = await handleAdmin(request, auth, env, url, {json, HttpError, readJSON});
+        if (admin) return admin;
         if (request.method === 'GET' && url.pathname === '/api/workspace') return await getWorkspace(auth, env);
         if (request.method === 'PUT' && url.pathname === '/api/workspace') return await putWorkspace(request, auth, env, ctx);
         const fileMatch = url.pathname.match(/^\/api\/files\/([^/]+)$/);

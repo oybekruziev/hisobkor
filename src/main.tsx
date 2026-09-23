@@ -44,6 +44,7 @@ import {BackupPanel} from './BackupPanel';
 import {CompanyOverview} from './CompanyOverview';
 import {AIOverlay} from './AIOverlay';
 import {MsfoPage} from './Msfo';
+import {AdminPage} from './Admin';
 import {appRoute} from './company-overview.mjs';
 import {eligible} from './ai-domain.mjs';
 import {migrateWorkspace,companyHistory,profileError,companyRequirements} from './workspace.mjs';
@@ -98,6 +99,7 @@ function App({saved,session,logout}:any){
  useEffect(()=>()=>{if(preview)URL.revokeObjectURL(preview)},[preview]);
  const parts=route.split('/');
  const company=parts[0]==='company'?companies.find(c=>c.id===parts[1]):null;
+ const isAdmin=parts[0]==='admin'&&!!session.admin;
  const isMsfo=parts[0]==='msfo';
  const msfoItem=isMsfo&&parts[1]?msfo.find(x=>x.id===parts[1]):null;
  const tab=tabs.some(t=>t[0]===parts[2])?parts[2]:'overview';
@@ -161,8 +163,9 @@ function App({saved,session,logout}:any){
    </SidebarHeader>
    <SidebarContent>
     <SidebarGroup><SidebarGroupContent><SidebarMenu aria-label="Asosiy">
-     <SidebarMenuItem><SidebarMenuButton isActive={!company&&!isMsfo} aria-current={company||isMsfo?undefined:'page'} onClick={()=>go('dashboard')}><Icon name="dashboard"/><span>Bosh sahifa</span></SidebarMenuButton></SidebarMenuItem>
+     <SidebarMenuItem><SidebarMenuButton isActive={!company&&!isMsfo&&!isAdmin} aria-current={company||isMsfo||isAdmin?undefined:'page'} onClick={()=>go('dashboard')}><Icon name="dashboard"/><span>Bosh sahifa</span></SidebarMenuButton></SidebarMenuItem>
      <SidebarMenuItem><SidebarMenuButton isActive={isMsfo} aria-current={isMsfo?'page':undefined} onClick={()=>go('msfo')}><Icon name="msfo"/><span>MSFO hujjatlari</span></SidebarMenuButton></SidebarMenuItem>
+     {session.admin&&<SidebarMenuItem><SidebarMenuButton isActive={isAdmin} aria-current={isAdmin?'page':undefined} onClick={()=>go('admin')}><Icon name="shield"/><span>Foydalanuvchilar</span></SidebarMenuButton></SidebarMenuItem>}
     </SidebarMenu></SidebarGroupContent></SidebarGroup>
 
     <SidebarGroup>
@@ -227,7 +230,8 @@ function App({saved,session,logout}:any){
     <Tooltip><TooltipTrigger asChild><SidebarTrigger data-slot="sidebar-trigger" className="-ml-1" aria-label="Menyu"/></TooltipTrigger><TooltipContent>Menyu</TooltipContent></Tooltip>
     <Separator orientation="vertical" className="mx-1 data-[orientation=vertical]:h-4"/>
     <Breadcrumb className="min-w-0" aria-label="Sahifa yo‘li"><BreadcrumbList className="flex-nowrap">
-     <BreadcrumbItem className={company||isMsfo?'max-sm:hidden':''}>{company||isMsfo?<BreadcrumbLink href="#dashboard">Bosh sahifa</BreadcrumbLink>:<BreadcrumbPage>Bosh sahifa</BreadcrumbPage>}</BreadcrumbItem>
+     <BreadcrumbItem className={company||isMsfo||isAdmin?'max-sm:hidden':''}>{company||isMsfo||isAdmin?<BreadcrumbLink href="#dashboard">Bosh sahifa</BreadcrumbLink>:<BreadcrumbPage>Bosh sahifa</BreadcrumbPage>}</BreadcrumbItem>
+     {isAdmin&&<><BreadcrumbSeparator className="max-sm:hidden"/><BreadcrumbItem><BreadcrumbPage>Foydalanuvchilar</BreadcrumbPage></BreadcrumbItem></>}
      {isMsfo&&<><BreadcrumbSeparator className="max-sm:hidden"/><BreadcrumbItem className="min-w-0">{msfoItem?<BreadcrumbLink href="#msfo">MSFO hujjatlari</BreadcrumbLink>:<BreadcrumbPage>MSFO hujjatlari</BreadcrumbPage>}</BreadcrumbItem>{msfoItem&&<><BreadcrumbSeparator className="max-md:hidden"/><BreadcrumbItem className="min-w-0 max-md:hidden"><BreadcrumbPage className="truncate">{msfoItem.title}</BreadcrumbPage></BreadcrumbItem></>}</>}
      {company&&<><BreadcrumbSeparator className="max-sm:hidden"/><BreadcrumbItem className="min-w-0"><BreadcrumbLink className="truncate" href={`#company/${company.id}/overview`}>{company.name}</BreadcrumbLink></BreadcrumbItem><BreadcrumbSeparator className="max-md:hidden"/><BreadcrumbItem className="max-md:hidden"><BreadcrumbPage>{sections.find(t=>t[0]===section)?.[1]}</BreadcrumbPage></BreadcrumbItem></>}
     </BreadcrumbList></Breadcrumb>
@@ -238,7 +242,7 @@ function App({saved,session,logout}:any){
    </header>
 
    <div id="main-content" tabIndex={-1} className={cn("mx-auto flex w-full min-w-0",msfoItem?"max-w-[90rem]":"max-w-6xl","flex-1 flex-col gap-4 p-4 outline-none max-lg:pb-24 lg:gap-6 lg:p-6")}>
-{isMsfo?<MsfoPage items={msfo} setItems={setMsfo} companies={companies} route={route} go={go} aiConnected={!!ai.connection.connected} aiLoading={!!ai.connection.loading}/>:!company?<>
+{isAdmin?<AdminPage currentUsername={session.username}/>:isMsfo?<MsfoPage items={msfo} setItems={setMsfo} companies={companies} route={route} go={go} aiConnected={!!ai.connection.connected} aiLoading={!!ai.connection.loading}/>:!company?<>
     <WorkspaceHome companies={companies} docs={docs} period={period} profile={profile} onPeriod={(value:string)=>setPeriod(value)} onOpenCompany={(id:string)=>go(`company/${id}/overview`)} onReview={reviewDocument} onUpload={()=>open({type:'upload',pick:true})} onAddCompany={()=>open({type:'company'})} banner={mine.length===0&&<Card><CardHeader><CardDescription>2 / 3 · Kompaniya qo‘shish</CardDescription><CardTitle>Profilingiz tayyor</CardTitle><CardDescription>Endi birinchi mijoz tashkilotini qo‘shing, so‘ng uning hujjatlarini yuklaysiz.</CardDescription></CardHeader><CardContent><ol role="list" className="flex flex-wrap gap-x-6 gap-y-2 text-sm">{['Profil to‘ldirildi','Kompaniya qo‘shish','Hujjat yuklash va tekshirish'].map((label,i)=><li key={label} className={cn('flex items-center gap-2',i===1?'font-medium':'text-muted-foreground')}><span className={cn('flex size-6 items-center justify-center rounded-full border text-xs tabular-nums',i===0&&'border-emerald-200 bg-emerald-50 text-emerald-700',i===1&&'border-primary bg-primary text-primary-foreground')}>{i===0?<Icon name="check" size={14}/>:i+1}</span>{label}</li>)}</ol></CardContent></Card>}/>
     <Card className="gap-0 py-0"><a href="#msfo" className="flex items-center gap-4 rounded-xl p-4 outline-none hover:bg-muted/40 focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:px-6">
      <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon name="msfo"/></span>
