@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 
 export const MAX_WORKSPACE_BYTES = 10 * 1024 * 1024;
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
-export const FILE_TYPES = new Map([['application/pdf','pdf'],['image/png','png'],['image/jpeg','jpg'],['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xlsx'],['text/csv','csv']]);
+export const FILE_TYPES = new Map([['application/pdf','pdf'],['image/png','png'],['image/jpeg','jpg'],['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xlsx'],['text/csv','csv'],['application/json','json']]);
 export function validFileId(id) { return typeof id==='string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(id) && !id.includes('..'); }
 const text=(value,max,required=true)=>typeof value==='string'&&value.length<=max&&(!required||value.trim().length>0);
 export function validateWorkspaceState(state) {
@@ -36,6 +36,11 @@ export function validateFile(bytes, contentType) {
   if (type === 'text/csv') {
     if (bytes.includes(0)) throw new Error('CSV fayli yaroqsiz.');
     try { new TextDecoder('utf-8',{fatal:true}).decode(bytes); } catch { throw new Error('CSV UTF-8 formatida bo‘lishi kerak.'); }
+  }
+  if (type === 'application/json') {
+    let value;
+    try { value = JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)); } catch { throw new Error('JSON fayli yaroqsiz.'); }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('JSON fayli yaroqsiz.');
   }
   return type;
 }
