@@ -36,7 +36,7 @@ export function periodSummary(docs,company,period,closed=[]){
  if(!items.length)
   return {state:'empty',tone:'neutral',title:'Bu davrda hali hujjat yo‘q',text:'Birinchi faylni yuklang.',progress,action:{kind:'upload',label:'Hujjat yuklash'}};
  if(review.length)
-  return {state:'review',tone:'warning',title:`${review.length} ta hujjat qaroringizni kutmoqda`,text:'Hujjatni oching, tekshiring va qabul qiling yoki tuzatishga qaytaring.',progress,
+  return {state:'review',tone:'warning',title:`${review.length} ta hujjat qaroringizni kutmoqda`,text:'Hujjatni oching, AI topgan xato va ziddiyatlarni ko‘ring va qabul qiling.',progress,
    action:{kind:'review',label:'Tekshirishni boshlash',documentId:review[0].id}};
  if(waiting.length)
   return {state:'waiting',tone:'neutral',title:`${waiting.length} ta hujjat kutilmoqda`,text:'Fayl yuklanmaguncha davrni yopib bo‘lmaydi.',progress,action:{kind:'upload',label:'Hujjat yuklash'}};

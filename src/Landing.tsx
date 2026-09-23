@@ -63,7 +63,7 @@ const gains=[
 
 const benefits=[
   [Buildings,'Bitta hisob, bir nechta kompaniya','Kompaniyani tanlaysiz va uning hujjatlari, rekvizitlari hamda amallar tarixini darhol ko‘rasiz.'],
-  [Sparkle,'Tekshiruvda yordamchi izoh','AI hujjatni o‘qib izoh qoldiradi. Qabul qilish yoki sabab yozib qaytarish sizning qaroringiz bo‘lib qoladi.'],
+  [Sparkle,'Tekshiruvda yordamchi izoh','AI hujjatni o‘qib, xato va ziddiyatlarni o‘zi topadi. Qabul qilish qarori sizda qoladi.'],
   [CalendarCheck,'Davrni ishonch bilan yopasiz','Oylik hujjatlar va ustav, guvohnoma, shartnomalar alohida turadi. Barcha talablar bajarilganda davrni yopasiz.'],
   [LockKey,'Fayllar yopiq saqlanadi','Hujjatlar faqat sizning hisobingiz orqali ochiladi. Avtomatik tekshiruv va MSFOga o‘tkazish vaqtida hujjat mazmuni AI tahlil xizmatiga yuboriladi.'],
   [DeviceMobile,'Telefonda ham, kompyuterda ham','Telefon, planshet va kompyuterda bir xil ishlaydi. Kompaniyalar va fayllar zaxirasini ilovadan yuklab olasiz.'],
@@ -87,7 +87,7 @@ export const questions=[
   ['Ishni qanday boshlayman?','Login va parol bilan hisob yaratasiz. Parol kamida 12 belgidan iborat bo‘lishi kerak, elektron pochtani tasdiqlash bosqichi yo‘q. So‘ng profilingizni to‘ldirasiz va birinchi kompaniyangizni qo‘shasiz.'],
   ['Bir nechta kompaniya bilan ishlasam bo‘ladimi?','Ha. Bitta hisobga bir nechta kompaniya qo‘shasiz. Har birining hujjatlari, rekvizitlari va amallar tarixi alohida saqlanadi.'],
   ['Qaysi fayllarni yuklash mumkin?','PDF, JPG, PNG, XLSX va CSV fayllari. Har bir fayl 25 MBgacha bo‘lishi mumkin.'],
-  ['AI hujjatni o‘zi qabul qiladimi?','Yo‘q. AI hujjatni o‘qiydi va yordamchi izoh qoldiradi. Qarorni buxgalter beradi: hujjatni qabul qiladi yoki sabab yozib qaytaradi.'],
+  ['AI hujjatni o‘zi qabul qiladimi?','Yo‘q. AI hujjatni o‘qiydi va yordamchi izoh qoldiradi. AI xato va ziddiyatlarni topib ko‘rsatadi, hujjatni qabul qilish qarorini esa buxgalter beradi.'],
   ['MSFO redaktori nima qiladi?','Word (.docx) hujjatini yoki nusxa olingan matnni MSFO (IFRS) shakliga o‘tkazadi: moliyaviy hisobot uchun MSFO shakllari va transformatsion tuzatishlar jadvali, matnli hujjat uchun MSFO atamalari va tuzilishi. Natijani redaktorda tahrirlab, .docx qilib yuklab olasiz.'],
   ['AI raqamlarni o‘zi to‘ldirib qo‘ymaydimi?','Yo‘q. Manbada yo‘q qiymat «[ma’lumot kerak]» deb belgilanadi va har bir o‘zgarish standart (IAS/IFRS) bilan izohlanadi. Natija — buxgalter tekshiradigan qoralama.'],
   ['Hujjatlarim maxfiyligi qanday?','Fayllar yopiq saqlanadi va faqat sizning hisobingiz orqali ochiladi. Avtomatik tekshiruv va MSFOga o‘tkazish vaqtida hujjat mazmuni AI tahlil xizmatiga yuboriladi.'],

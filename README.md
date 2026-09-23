@@ -37,7 +37,7 @@ Deploy va hisob yaratish: [DEPLOYMENT.md](DEPLOYMENT.md), backend tafsilotlari: 
 1. Hisobingizga kiring va buxgalter profilini to‘ldiring.
 2. Kompaniya qo‘shing, dropdown orqali ishlayotgan kompaniyangizni tanlang.
 3. Oylik yoki doimiy hujjatlarni yuklang. Avtomatik izohlar hujjat ichida ko‘rinadi.
-4. Hujjatni qabul qiling yoki sababini yozib tuzatishga qaytaring.
+4. AI topgan xato va ziddiyatlarni ko‘rib, hujjatni qabul qiling.
 5. Kompaniya tarixi, reyestri va zaxiralaridan foydalaning.
 
 Har bir foydalanuvchining ish joyi ajratilgan. Hujjatlar ochiq URL bilan berilmaydi. Saqlashda revision tekshiruvi boshqa oynadagi o‘zgarishni bosib yozishdan saqlaydi. Fayl versiyalari va avvalgi qabul qarorlari saqlanadi.
