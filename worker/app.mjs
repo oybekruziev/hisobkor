@@ -7,6 +7,7 @@ const SESSION_COOKIE = '__Host-mezon_session';
 const SESSION_SECONDS = 12 * 60 * 60;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const STATIC_APP = new Set(['/', '/index.html', '/app.js', '/style.css', '/favicon.svg', '/brand-h.png', '/fonts/Geist-latin.woff2', '/fonts/Geist-latin-ext.woff2', '/fonts/Geist-cyrillic.woff2']);
+const STATIC_ADMIN = new Map([['/', '/admin.html'], ['/admin.js', '/admin.js'], ['/style.css', '/style.css'], ['/favicon.svg', '/favicon.svg'], ['/brand-h.png', '/brand-h.png'], ['/fonts/Geist-latin.woff2', '/fonts/Geist-latin.woff2'], ['/fonts/Geist-latin-ext.woff2', '/fonts/Geist-latin-ext.woff2'], ['/fonts/Geist-cyrillic.woff2', '/fonts/Geist-cyrillic.woff2']]);
 const STATIC_LANDING = new Map([['/', '/landing.html'], ['/landing.html', '/landing.html'], ['/landing.css', '/landing.css'], ['/landing.js', '/landing.js'], ['/favicon.svg', '/favicon.svg'], ['/brand-h.png', '/brand-h.png'], ['/og-image.png', '/og-image.png'], ['/shots/overview.webp', '/shots/overview.webp'], ['/shots/documents.webp', '/shots/documents.webp'], ['/shots/msfo.webp', '/shots/msfo.webp'], ['/sitemap.xml', '/sitemap.xml'], ['/fonts/Geist-latin.woff2', '/fonts/Geist-latin.woff2'], ['/fonts/Geist-latin-ext.woff2', '/fonts/Geist-latin-ext.woff2'], ['/fonts/Geist-cyrillic.woff2', '/fonts/Geist-cyrillic.woff2']]);
 const securityHeaders = {
   'Content-Security-Policy': "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; frame-src 'self' blob:; connect-src 'self' https://cloudflareinsights.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
@@ -37,14 +38,16 @@ const configuredOrigin = (env, key, fallback) => {
   try { return new URL(env[key] || fallback).origin.toLowerCase(); } catch { return fallback; }
 };
 const appOrigin = env => configuredOrigin(env, 'APP_ORIGIN', `https://${env.APP_HOST || 'app.hisobkor.uz'}`);
+const adminOrigin = env => configuredOrigin(env, 'ADMIN_ORIGIN', `https://${env.ADMIN_HOST || 'admin.hisobkor.uz'}`);
 const siteOrigin = env => configuredOrigin(env, 'SITE_ORIGIN', `https://${env.LANDING_HOST || 'hisobkor.uz'}`);
 
 export function allowedOrigin(request, env) {
   const host = requestHost(request);
   const local = env.ENVIRONMENT === 'local';
   if (local) return host === 'localhost' || host === '127.0.0.1';
-  return host === new URL(appOrigin(env)).hostname;
+  return host === new URL(appOrigin(env)).hostname || host === new URL(adminOrigin(env)).hostname;
 }
+export const isAdminHost = (request, env) => env.ENVIRONMENT !== 'local' && requestHost(request) === new URL(adminOrigin(env)).hostname;
 
 export function mutationAllowed(request, env) {
   if (request.headers.get('X-Mezon-Request') !== '1' || !allowedOrigin(request, env)) return false;
@@ -55,7 +58,7 @@ export function mutationAllowed(request, env) {
     try { const source = new URL(origin); return ['localhost', '127.0.0.1'].includes(source.hostname) && source.port === actual.port; }
     catch { return false; }
   }
-  return origin.toLowerCase() === appOrigin(env);
+  return origin.toLowerCase() === (isAdminHost(request, env) ? adminOrigin(env) : appOrigin(env));
 }
 
 async function readBytes(request, limit) {
@@ -119,12 +122,12 @@ async function rateLimitLogin(request, env, scope = '') {
   if (!row || Number(row.attempts) > 5) throw new HttpError(429, 'Juda ko‘p urinish. 15 daqiqadan keyin qayta urinib ko‘ring.');
 }
 
-async function login(request, env) {
+async function login(request, env, {adminOnly = false} = {}) {
   await rateLimitLogin(request, env);
   const body = await readJSON(request, 8 * 1024);
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new HttpError(400, 'Login so‘rovi yaroqsiz.');
   const username = typeof body.username === 'string' ? body.username.trim().slice(0, 120) : '';
-  const row = username ? await env.DB.prepare('SELECT id,password_salt,password_hash,password_iterations FROM accounts WHERE username=? COLLATE NOCASE AND disabled=0').bind(username).first() : null;
+  const row = username && (!adminOnly || isAdminUser(env, username)) ? await env.DB.prepare('SELECT id,password_salt,password_hash,password_iterations FROM accounts WHERE username=? COLLATE NOCASE AND disabled=0').bind(username).first() : null;
   const password = typeof body.password === 'string' ? body.password : '';
   const valid = row
     ? await verifyPassword(password, row.password_salt, row.password_hash, Number(row.password_iterations))
@@ -388,6 +391,34 @@ async function serveAsset(request, env, pathname) {
   return new Response(response.body, {status: response.status, statusText: response.statusText, headers});
 }
 
+/** admin.hisobkor.uz: its own admin-only login (host-only cookie), user management API, nothing else. */
+async function adminHost(request, env, ctx, url) {
+  if (!url.pathname.startsWith('/api/')) {
+    if (!['GET', 'HEAD'].includes(request.method)) return fail(405, 'Usul qo‘llab-quvvatlanmaydi.');
+    if (!STATIC_ADMIN.has(url.pathname)) return fail(404, 'Sahifa topilmadi.');
+    const response = await serveAsset(request, env, STATIC_ADMIN.get(url.pathname));
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return response;
+  }
+  const adminSession = async () => { const auth = await session(request, env, ctx); return auth?.admin ? auth : null; };
+  if (request.method === 'GET' && url.pathname === '/api/session') {
+    const auth = await adminSession();
+    return json({authenticated: !!auth, mode: 'production', storage: 'server', ...(auth ? {admin: true, username: auth.username} : {})});
+  }
+  if (request.method === 'POST' && url.pathname === '/api/login') {
+    if (!mutationAllowed(request, env)) return fail(403, 'Ruxsat berilmagan so‘rov.');
+    return await login(request, env, {adminOnly: true});
+  }
+  const auth = await adminSession();
+  if (!auth) return fail(401, 'Tizimga qayta kiring.');
+  if (!['GET', 'HEAD'].includes(request.method) && !mutationAllowed(request, env)) return fail(403, 'Ruxsat berilmagan so‘rov.');
+  if (request.method === 'POST' && url.pathname === '/api/logout') {
+    await env.DB.prepare('DELETE FROM sessions WHERE token_hash=? AND account_id=?').bind(auth.tokenHash, auth.accountId).run();
+    return json({authenticated: false}, 200, {'Set-Cookie': clearCookie()});
+  }
+  return (await handleAdmin(request, auth, env, url, {json, HttpError, readJSON})) || fail(404, 'API manzili topilmadi.');
+}
+
 export function createWorker() {
   return {
     async fetch(request, env, ctx = {waitUntil() {}}) {
@@ -405,6 +436,7 @@ export function createWorker() {
           return fail(404, 'Sahifa topilmadi.');
         }
         if (!allowedOrigin(request, env)) return fail(403, 'Ruxsat berilmagan manba.');
+        if (isAdminHost(request, env)) return await adminHost(request, env, ctx, url);
         if (url.pathname === '/healthz') return request.method === 'GET' ? json({ok: true}) : fail(405, 'Usul qo‘llab-quvvatlanmaydi.');
         if (!url.pathname.startsWith('/api/')) {
           if (request.method !== 'GET' && request.method !== 'HEAD') return fail(405, 'Usul qo‘llab-quvvatlanmaydi.');
@@ -413,7 +445,7 @@ export function createWorker() {
         }
         if (request.method === 'GET' && url.pathname === '/api/session') {
           const auth = await session(request, env, ctx);
-          return json({authenticated: !!auth, mode: 'production', storage: 'server', ...(auth?.admin ? {admin: true, username: auth.username} : {})});
+          return json({authenticated: !!auth, mode: 'production', storage: 'server'});
         }
         if (request.method === 'POST' && url.pathname === '/api/login') {
           if (!mutationAllowed(request, env)) return fail(403, 'Ruxsat berilmagan so‘rov.');
@@ -431,8 +463,6 @@ export function createWorker() {
           await env.DB.prepare('DELETE FROM sessions WHERE token_hash=? AND account_id=?').bind(auth.tokenHash, auth.accountId).run();
           return json({authenticated: false}, 200, {'Set-Cookie': clearCookie()});
         }
-        const admin = await handleAdmin(request, auth, env, url, {json, HttpError, readJSON});
-        if (admin) return admin;
         if (request.method === 'GET' && url.pathname === '/api/workspace') return await getWorkspace(auth, env);
         if (request.method === 'PUT' && url.pathname === '/api/workspace') return await putWorkspace(request, auth, env, ctx);
         const fileMatch = url.pathname.match(/^\/api\/files\/([^/]+)$/);

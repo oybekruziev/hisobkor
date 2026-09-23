@@ -11,7 +11,6 @@ export function workspaceRoute(route,companies){
  */
 export function appRoute(route,companies){
 
- if(String(route||'')==='admin')return 'admin';
  if(/^msfo(\/[A-Za-z0-9._-]{1,128})?$/.test(String(route||'')))return String(route);
  if(String(route||'').startsWith('company/'))return companies.some(c=>c.id===String(route).split('/')[1])?String(route):'dashboard';
  return 'dashboard';

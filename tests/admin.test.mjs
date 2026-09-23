@@ -68,3 +68,39 @@ test('delete removes files and rows, refuses self and admins', async () => {
   assert.equal(accounts.has(ID(2)), false);
   await assert.rejects(call(env, 'DELETE', `/api/admin/users/not-an-id`, admin), e => e.status === 404);
 });
+
+import {createWorker, mutationAllowed, isAdminHost} from '../worker/app.mjs';
+const hostEnv = () => {
+  const queries = [];
+  return {queries, env: {
+    ENVIRONMENT: 'production', APP_HOST: 'app.hisobkor.uz', LANDING_HOST: 'hisobkor.uz', ADMIN_USERNAMES: 'oybek',
+    DOCUMENTS: {}, ASSETS: {fetch: async request => new Response(new URL(request.url).pathname)},
+    DB: {prepare(sql) { queries.push(sql); const st = {bind() { return st; }, async first() { return sql.includes('login_limits') ? {attempts: 1} : null; }}; return st; }},
+  }};
+};
+const ctx = {waitUntil() {}};
+
+test('admin.hisobkor.uz serves only the admin shell and is noindex', async () => {
+  const {env} = hostEnv();
+  const worker = createWorker();
+  let response = await worker.fetch(new Request('https://admin.hisobkor.uz/'), env, ctx);
+  assert.equal(await response.text(), '/admin.html');
+  assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, nofollow');
+  response = await worker.fetch(new Request('https://admin.hisobkor.uz/app.js'), env, ctx);
+  assert.equal(response.status, 404);
+  response = await worker.fetch(new Request('https://admin.hisobkor.uz/api/workspace'), env, ctx);
+  assert.equal(response.status, 401);
+  response = await worker.fetch(new Request('https://app.hisobkor.uz/admin.js'), env, ctx);
+  assert.equal(response.status, 404);
+});
+
+test('admin host accepts only its own origin and refuses non-admin logins without a lookup', async () => {
+  const {env, queries} = hostEnv();
+  assert.equal(isAdminHost(new Request('https://admin.hisobkor.uz/'), env), true);
+  const post = origin => new Request('https://admin.hisobkor.uz/api/login', {method: 'POST', headers: {Origin: origin, 'X-Mezon-Request': '1', 'Content-Type': 'application/json'}, body: JSON.stringify({username: 'ali', password: 'x'.repeat(12)})});
+  assert.equal(mutationAllowed(post('https://admin.hisobkor.uz'), env), true);
+  assert.equal(mutationAllowed(post('https://app.hisobkor.uz'), env), false);
+  const response = await createWorker().fetch(post('https://admin.hisobkor.uz'), env, ctx);
+  assert.equal(response.status, 401);
+  assert.ok(!queries.some(sql => sql.includes('FROM accounts WHERE username')));
+});
