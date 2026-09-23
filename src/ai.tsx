@@ -9,6 +9,7 @@ import {Collapsible,CollapsibleTrigger,CollapsibleContent} from './components/ui
 import React,{useEffect,useRef,useState} from 'react';
 import {Button} from './components/ui/button';
 import {Icon} from './Icon';
+import {AiConsent} from './components/app/AiConsent';
 import {getFile} from './storage';
 import {eligible,version,validAnalysis,reviewFindings,issueTone} from './ai-domain.mjs';
 
@@ -25,7 +26,7 @@ export function recoverAnalysis(d:any){
  return d.ai?.jobId?d:{...d,ai:{...d.ai,status:'error',error:'Oldingi tekshiruv yakunlanmagan. Qayta tekshiring.'}};
 }
 
-export function useAI({docs,setDocs,companies,onEvent,auto,enabled,canAnalyze}:any){
+export function useAI({docs,setDocs,companies,onEvent,auto,setAuto,enabled,canAnalyze}:any){
  const [connection,setConnection]=useState<any>({connected:false,managed:true,background:false,loading:true});
  const [running,setRunning]=useState(false),[notice,setNotice]=useState('');
  const scheduled=useRef(new Set<string>()),locked=useRef(false),queue=useRef<any[]>([]),mounted=useRef(true);
@@ -67,6 +68,7 @@ export function useAI({docs,setDocs,companies,onEvent,auto,enabled,canAnalyze}:a
   }}finally{locked.current=false;if(mounted.current)setRunning(false);}
  }
  function check(items:any[],force=false){
+  if(!auto){setNotice('AI tahliliga ruxsat o‘chirilgan. Uni yoqsangiz, hujjatlar tekshiriladi.');return;}
   if(!connection.connected){setNotice('Avtomatik tekshiruv hozir mavjud emas. Hujjatni qo‘lda tekshirishingiz mumkin.');return;}
   if(!canAnalyze?.()){setNotice('Ma’lumotlar saqlanmoqda. Saqlash tugagach qayta urinib ko‘ring.');return;}
   setNotice('');
@@ -83,7 +85,7 @@ export function useAI({docs,setDocs,companies,onEvent,auto,enabled,canAnalyze}:a
   const recovering=docs.filter((d:any)=>eligible(d)&&d.ai?.jobId&&['queued','processing'].includes(d.ai.status));
   const fresh=auto?docs.filter((d:any)=>eligible(d)&&!d.ai):[];check([...recovering,...fresh]);
  },[connection.connected,connection.background,enabled,auto,docs,canAnalyze]);
- return {connection,running,notice,check,ready:canAnalyze?.()!==false};
+ return {connection,running,notice,check,ready:canAnalyze?.()!==false,consent:!!auto,setConsent:(v:boolean)=>{setNotice('');setAuto?.(v)}};
 }
 
 const kinds:any={invoice:'Schyot-faktura',contract:'Shartnoma',bank_statement:'Bank ko‘chirmasi',act:'Dalolatnoma',other:'Boshqa hujjat'};
@@ -113,9 +115,10 @@ export function AIBar({ai,docs}:any){
   <CardHeader className="px-4">
    <CardTitle className="flex items-center gap-2 text-base"><Icon name="spark" className="text-primary"/>Avtomatik tekshiruv</CardTitle>
    <CardDescription>{ai.connection.loading?'Holat tekshirilmoqda…':ai.connection.connected?pending?`${pending} ta hujjat tekshirilmoqda · ${done} ta tayyor`:`${done} / ${files.length} hujjat tekshirilgan`:'Xizmat hozir mavjud emas; hujjatlarni qo‘lda tekshiring'}</CardDescription>
-   {ai.connection.connected&&<CardAction><Button variant="outline" size="sm" disabled={!ai.ready||ai.running||!files.some((d:any)=>!validAnalysis(d)&&!['queued','processing'].includes(d.ai?.status))} onClick={()=>ai.check(files.filter((d:any)=>!validAnalysis(d)))}>{ai.running?<Spinner/>:<Icon name="spark"/>}{ai.running?'Tekshirilmoqda…':'Tekshirishni boshlash'}</Button></CardAction>}
+   {ai.connection.connected&&ai.consent&&<CardAction><Button variant="outline" size="sm" disabled={!ai.ready||ai.running||!files.some((d:any)=>!validAnalysis(d)&&!['queued','processing'].includes(d.ai?.status))} onClick={()=>ai.check(files.filter((d:any)=>!validAnalysis(d)))}>{ai.running?<Spinner/>:<Icon name="spark"/>}{ai.running?'Tekshirilmoqda…':'Tekshirishni boshlash'}</Button></CardAction>}
   </CardHeader>
-  {(ai.notice||(!ai.connection.loading&&!ai.connection.connected))&&<CardContent className="flex flex-col gap-3 px-4">
+  {(ai.notice||ai.connection.connected||(!ai.connection.loading&&!ai.connection.connected))&&<CardContent className="flex flex-col gap-3 px-4">
+   {ai.connection.connected&&<AiConsent checked={ai.consent} onCheckedChange={ai.setConsent} onHint="Yangi hujjatlar yuklanishi bilan avtomatik tekshiriladi."/>}
    {ai.notice&&<p className="text-sm text-muted-foreground" role="status">{ai.notice}</p>}
    {!ai.connection.loading&&!ai.connection.connected&&<Alert><Icon name="alert"/><AlertDescription>Avtomatik tekshiruv hozir ishlamayapti. Hujjatlarni odatdagidek qo‘lda tekshirib, qaror berishingiz mumkin.</AlertDescription></Alert>}
   </CardContent>}
@@ -183,7 +186,7 @@ export function AIReview({doc,docs,company,ai,onRelated}:any){
   </>:<Alert role="status" className={doc.ai?.status==='error'?toneClasses.issue:undefined}>{pending?<Spinner/>:<Icon name={doc.ai?.status==='error'?'alert':'spark'}/>}<AlertDescription className={doc.ai?.status==='error'?'text-red-700':undefined}>{doc.ai?.status==='error'?doc.ai.error:pending?(ai.connection.background?'Tekshiruv fonda davom etmoqda. Bu oynani yopishingiz mumkin.':'Tekshiruv davom etmoqda. Jarayon tugaguncha sahifani ochiq qoldiring.'):'Hujjat hali avtomatik tekshirilmagan.'}</AlertDescription></Alert>}
 
   <div className="flex flex-col gap-2">
-   <Button variant="outline" className="w-full" disabled={!ai.ready||pending||ai.running||!ai.connection.connected} onClick={()=>ai.check([doc],!!r||doc.ai?.status==='error')}>{pending?<Spinner/>:<Icon name="spark"/>}{pending?'Tekshirilmoqda…':r?'Qayta tekshirish':ai.connection.connected?'Tekshirish':'Tekshiruv mavjud emas'}</Button>
+   {ai.connection.connected&&!ai.consent?<AiConsent checked={false} onCheckedChange={ai.setConsent}/>:<Button variant="outline" className="w-full" disabled={!ai.ready||pending||ai.running||!ai.connection.connected} onClick={()=>ai.check([doc],!!r||doc.ai?.status==='error')}>{pending?<Spinner/>:<Icon name="spark"/>}{pending?'Tekshirilmoqda…':r?'Qayta tekshirish':ai.connection.connected?'Tekshirish':'Tekshiruv mavjud emas'}</Button>}
    <p className="text-xs text-pretty text-muted-foreground">Avtomatik xulosa yordamchi tavsiya. Yakuniy qarorni buxgalter beradi.{r&&<> Tekshirilgan: {new Date(r.checkedAt).toLocaleString('uz-UZ')} · {r.model}</>}</p>
   </div>
   <Separator/>

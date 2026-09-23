@@ -5,6 +5,9 @@ export const MSFO_MODES = ['statements', 'text'];
 export const MSFO_LANGUAGES = {uz: 'o‘zbek (lotin)', ru: 'rus', en: 'ingliz'};
 export const MAX_SOURCE_CHARS = 150_000;
 export const MAX_SELECTION_CHARS = 20_000;
+export const MAX_PDF_BYTES = 15 * 1024 * 1024;
+/** JSON body ceiling for a convert request that carries a base64 PDF (4/3 of the file plus the other fields). */
+export const MAX_MSFO_BODY = Math.ceil(MAX_PDF_BYTES * 4 / 3) + 700 * 1024;
 const MAX_INSTRUCTION_CHARS = 1_000;
 
 const change = {
@@ -67,7 +70,20 @@ export function validateMsfoRequest(body) {
     if (!instruction) throw new Error('AI uchun ko‘rsatma yozing.');
     return {action, mode, language, instruction, title, selection, context: typeof body.context === 'string' ? body.context.slice(0, 8_000) : ''};
   }
+  if (body.file !== undefined && body.file !== null) return {action, mode, language, instruction, title, file: pdfFile(body.file)};
   return {action, mode, language, instruction, title, source: text(body.source, MAX_SOURCE_CHARS, 'Hujjat matni')};
+}
+
+/** A PDF source travels as base64 and is handed to the model as a file, so scans are read too. */
+function pdfFile(file) {
+  const name = typeof file?.name === 'string' ? file.name.trim().slice(0, 240) : '';
+  const base64 = file?.base64;
+  if (!/\.pdf$/i.test(name)) throw new Error('Faqat PDF fayl yuborish mumkin.');
+  if (typeof base64 !== 'string' || !base64 || base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) throw new Error('PDF fayl o‘qilmadi.');
+  if (base64.length > Math.ceil(MAX_PDF_BYTES * 4 / 3)) throw new Error('PDF fayl 15 MBdan oshmasin.');
+  const head = atob(base64.slice(0, 1368));
+  if (!head.includes('%PDF-')) throw new Error('Fayl PDF emas yoki buzilgan.');
+  return {name, base64};
 }
 
 /** Builds the OpenAI Responses API body. Pure, so it is unit-tested without a network. */
@@ -85,7 +101,10 @@ export function buildMsfoRequest(input, model) {
   return {
     model, store: false,
     instructions: `${common}\n${modeInstructions[input.mode]}\n${lang}`,
-    input: [{role: 'user', content: [{type: 'input_text', text: `Hujjat nomi: ${input.title || '—'}\nQo‘shimcha ko‘rsatma: ${input.instruction || '—'}\n\nManba hujjat (HTML):\n${input.source}`}]}],
+    input: [{role: 'user', content: input.file ? [
+      {type: 'input_text', text: `Hujjat nomi: ${input.title || '—'}\nQo‘shimcha ko‘rsatma: ${input.instruction || '—'}\n\nManba hujjat biriktirilgan PDF faylda. Barcha sahifalarni, jumladan skanerlangan jadvallarni o‘qing; o‘qib bo‘lmagan joyni limitations ga yozing.`},
+      {type: 'input_file', filename: input.file.name, file_data: `data:application/pdf;base64,${input.file.base64}`},
+    ] : [{type: 'input_text', text: `Hujjat nomi: ${input.title || '—'}\nQo‘shimcha ko‘rsatma: ${input.instruction || '—'}\n\nManba hujjat (HTML):\n${input.source}`}]}],
     text: {format: {type: 'json_schema', name: 'msfo_conversion', strict: true, schema: convertSchema}},
     max_output_tokens: 32_000,
   };
@@ -129,4 +148,46 @@ export async function runMsfo(body, {key, model, fetcher = fetch}) {
   });
   if (!response.ok) throw new Error(msfoApiError(response.status));
   return {...parseMsfoResponse(await response.json(), input.action), model, createdAt: new Date().toISOString()};
+}
+
+/*
+ * Conversion can take several minutes, longer than an HTTP request should stay open, so it runs
+ * as an OpenAI background response: start returns an id at once, the browser polls, and the stored
+ * response is deleted as soon as its result has been read.
+ */
+const OPENAI = 'https://api.openai.com/v1/responses';
+
+export async function startMsfo(body, {key, model, fetcher = fetch}) {
+  const input = validateMsfoRequest(body);
+  if (input.action !== 'convert') throw new Error('Fon rejimi faqat MSFOga o‘tkazish uchun.');
+  const response = await fetcher(OPENAI, {
+    method: 'POST',
+    headers: {Authorization: `Bearer ${key}`, 'Content-Type': 'application/json'},
+    signal: AbortSignal.timeout(60_000),
+    body: JSON.stringify({...buildMsfoRequest(input, model), background: true, store: true}),
+  });
+  if (!response.ok) throw new Error(msfoApiError(response.status));
+  const data = await response.json();
+  if (typeof data?.id !== 'string' || !validJobId(data.id)) throw new Error('AI javobi kutilgan shaklda emas.');
+  return {id: data.id, status: 'processing'};
+}
+
+export const validJobId = id => typeof id === 'string' && /^resp_[A-Za-z0-9_-]{8,200}$/.test(id);
+
+const pending = new Set(['queued', 'in_progress']);
+export async function pollMsfo(id, {key, model, fetcher = fetch}) {
+  if (!validJobId(id)) throw new Error('Topshiriq identifikatori yaroqsiz.');
+  const url = `${OPENAI}/${encodeURIComponent(id)}`;
+  const response = await fetcher(url, {headers: {Authorization: `Bearer ${key}`}, signal: AbortSignal.timeout(30_000)});
+  if (response.status === 404) throw new Error('Topshiriq topilmadi yoki muddati o‘tgan. Qayta o‘tkazib ko‘ring.');
+  if (!response.ok) throw new Error(msfoApiError(response.status));
+  const data = await response.json();
+  if (pending.has(data?.status)) return {status: 'processing'};
+  try {
+    if (data?.status === 'failed' || data?.status === 'cancelled') throw new Error('AI hujjatni o‘tkaza olmadi. Qayta urinib ko‘ring.');
+    return {status: 'complete', result: {...parseMsfoResponse(data, 'convert'), model, createdAt: new Date().toISOString()}};
+  } finally {
+    // The document must not stay on the provider's side longer than it takes to read the answer.
+    await fetcher(url, {method: 'DELETE', headers: {Authorization: `Bearer ${key}`}, signal: AbortSignal.timeout(15_000)}).catch(() => {});
+  }
 }

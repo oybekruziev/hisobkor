@@ -27,9 +27,15 @@ import {docxToBlocks,blocksToHtml,blocksToDocx,blocksText} from './msfo/docx.mjs
 import {htmlToBlocks,sanitizeHtml,textToHtml,plainText} from './msfo/html';
 import {DocumentEditor,type EditorHandle,pageClass} from './msfo/Editor';
 import {msfoCounts,MSFO_MARKERS,msfoModes,msfoLanguages,newMsfoItem} from './msfo/model.mjs';
+import {AiConsent} from './components/app/AiConsent';
 
-type Meta={id:string;title:string;mode:'statements'|'text';language:string;companyId?:string|null;fileKey?:string|null;sourceName?:string;instruction?:string;createdAt:string;updatedAt:string;converted?:boolean;counts?:{conflict:number;warning:number;info:number;missing:number}};
+type Meta={id:string;title:string;mode:'statements'|'text';language:string;companyId?:string|null;fileKey?:string|null;sourceName?:string;instruction?:string;createdAt:string;updatedAt:string;converted?:boolean;sourceFileKey?:string|null;sourceType?:'pdf'|'docx'|'text';job?:{id:string;startedAt:string}|null;counts?:{conflict:number;warning:number;info:number;missing:number}};
 type Content={version:1;html:string;sourceHtml:string;ai?:any};
+type Picked={kind:'pdf';name:string;file:File;stats:string}|{kind:'docx';name:string;html:string;stats:string};
+type Draft={kind:'pdf'|'docx'|'text';name:string;html:string;file?:File;meta?:Meta};
+const sizeLabel=(n:number)=>n<1024*1024?`${Math.max(1,Math.round(n/1024))} KB`:`${(n/1024/1024).toFixed(1).replace('.',',')} MB`;
+function toBase64(file:Blob){return new Promise<string>((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]||'');r.onerror=()=>reject(Error('Faylni o‘qib bo‘lmadi.'));r.readAsDataURL(file)})}
+const wait=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 
 const toneClass:Record<string,string>={conflict:'border-l-red-500',warning:'border-l-amber-500',info:'border-l-blue-500'};
 const toneLabel:Record<string,string>={conflict:'Ziddiyat',warning:'Tekshiring',info:'Eslatma'};
@@ -60,15 +66,15 @@ const fileName=(title:string)=>`${(title||'MSFO hujjati').replace(/[\\/:*?"<>|\u
 
 /* ------------------------------ List ------------------------------ */
 
-export function MsfoPage({items,setItems,companies,route,go,aiConnected,aiLoading}:{items:Meta[];setItems:(fn:(all:Meta[])=>Meta[])=>void;companies:any[];route:string;go:(r:string)=>void;aiConnected:boolean;aiLoading:boolean}){
+export function MsfoPage({items,setItems,companies,route,go,aiConnected,aiLoading,aiConsent,setAiConsent}:{items:Meta[];setItems:(fn:(all:Meta[])=>Meta[])=>void;companies:any[];route:string;go:(r:string)=>void;aiConnected:boolean;aiLoading:boolean;aiConsent:boolean;setAiConsent:(v:boolean)=>void}){
  const id=route.split('/')[1];
  const [creating,setCreating]=useState<null|{mode:'statements'|'text'}>(null);
  const item=id?items.find(x=>x.id===id):null;
  const mine=companies.filter(c=>!c.isDemo);
  const companyName=(cid?:string|null)=>mine.find(c=>c.id===cid)?.name;
- if(id&&item)return <MsfoWorkspace key={item.id} item={item} setItems={setItems} companyName={companyName(item.companyId)} go={go} aiConnected={aiConnected}/>;
+ if(id&&item)return <MsfoWorkspace key={item.id} item={item} setItems={setItems} companyName={companyName(item.companyId)} go={go} aiConnected={aiConnected} aiConsent={aiConsent} setAiConsent={setAiConsent}/>;
  return <>
-  <PageHeader title="MSFO hujjatlari" description="Word hujjatini xalqaro moliyaviy hisobot standartlari (MSFO / IFRS) shakliga AI yordamida o‘tkazing, redaktorda tekshirib tahrirlang va .docx qilib yuklab oling."
+  <PageHeader title="MSFO hujjatlari" description="PDF yoki Word hisobotni AI yordamida MSFO (IFRS) shakliga o‘tkazing, redaktorda tekshiring va Word’da yuklab oling."
    actions={<Button onClick={()=>setCreating({mode:'statements'})}><Icon name="plus"/>Yangi hujjat</Button>}/>
   {id&&!item&&<Alert><Icon name="alert"/><AlertTitle>Hujjat topilmadi</AlertTitle><AlertDescription>U o‘chirilgan bo‘lishi mumkin. Ro‘yxatdan boshqasini tanlang.</AlertDescription></Alert>}
   {!aiLoading&&!aiConnected&&<Alert><Icon name="alert"/><AlertTitle>AI xizmati hozir ulanmagan</AlertTitle><AlertDescription>Hujjatni yuklab, redaktorda qo‘lda tahrirlash va .docx qilib saqlash ishlaydi. Avtomatik MSFOga o‘tkazish xizmat ulangach yoqiladi.</AlertDescription></Alert>}
@@ -76,9 +82,9 @@ export function MsfoPage({items,setItems,companies,route,go,aiConnected,aiLoadin
    <CardHeader className="border-b py-4"><CardTitle className="text-base">Hujjatlar</CardTitle><CardDescription>{items.length} ta hujjat · oxirgi o‘zgargani yuqorida</CardDescription></CardHeader>
    <ul role="list" className="divide-y">{[...items].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).map(x=>{const c=x.counts;return <li key={x.id}>
     <a href={`#msfo/${x.id}`} className="flex items-center gap-3 px-4 py-3 outline-none hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:px-6">
-     <FileTile label="DOCX"/>
+     <FileTile label={x.sourceType==='pdf'?'PDF':x.sourceType==='text'?'MATN':'DOCX'}/>
      <span className="grid min-w-0 flex-1 gap-0.5"><span className="truncate text-sm font-medium">{x.title}</span><span className="truncate text-sm text-muted-foreground">{msfoModes[x.mode]}{companyName(x.companyId)?` · ${companyName(x.companyId)}`:''} · {formatDate(x.updatedAt)}</span></span>
-     <span className="hidden flex-wrap justify-end gap-1.5 sm:flex">{!x.converted?<Badge variant="outline" className="text-muted-foreground">Qoralama</Badge>:<>
+     <span className="hidden flex-wrap justify-end gap-1.5 sm:flex">{x.job?<Badge variant="outline" className={toneBadge.info}><Spinner className="size-3"/>O‘tkazilmoqda</Badge>:!x.converted?<Badge variant="outline" className="text-muted-foreground">Qoralama</Badge>:<>
       {c?.conflict?<Badge variant="outline" className={toneBadge.conflict}>{c.conflict} ta ziddiyat</Badge>:null}
       {c?.missing?<Badge variant="outline" className={toneBadge.warning}>{c.missing} joyda ma’lumot kerak</Badge>:null}
       {!c?.conflict&&!c?.missing&&<Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700"><Icon name="check"/>MSFOga o‘tkazilgan</Badge>}
@@ -87,7 +93,7 @@ export function MsfoPage({items,setItems,companies,route,go,aiConnected,aiLoadin
     </a></li>})}</ul>
   </Card>:<Card>
    <CardContent className="flex flex-col gap-8 py-4">
-    <Empty className="border-0 p-0 md:p-0"><EmptyHeader><EmptyMedia variant="icon"><Icon name="msfo"/></EmptyMedia><EmptyTitle>Birinchi hujjatni MSFOga o‘tkazing</EmptyTitle><EmptyDescription>Word (.docx) faylni yuklang yoki matnni joylashtiring. AI uni MSFO tuzilishi va atamalariga moslab qayta yozadi, siz esa redaktorda tekshirib, tuzatasiz.</EmptyDescription></EmptyHeader></Empty>
+    <Empty className="border-0 p-0 md:p-0"><EmptyHeader><EmptyMedia variant="icon"><Icon name="msfo"/></EmptyMedia><EmptyTitle>Birinchi hujjatni MSFOga o‘tkazing</EmptyTitle><EmptyDescription>PDF yoki Word faylni yuklang. AI uni MSFO tuzilishi va atamalariga moslab qayta yozadi, siz esa redaktorda tekshirib, tuzatasiz.</EmptyDescription></EmptyHeader></Empty>
     <div className="grid gap-3 md:grid-cols-2">
      {(['statements','text'] as const).map(mode=><button key={mode} type="button" onClick={()=>setCreating({mode})} className="group flex flex-col items-start gap-2 rounded-xl border bg-background p-5 text-left outline-none transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:ring-[3px] focus-visible:ring-ring/50">
       <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon name={mode==='statements'?'table':'document'}/></span>
@@ -96,13 +102,16 @@ export function MsfoPage({items,setItems,companies,route,go,aiConnected,aiLoadin
       <span className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-primary">Boshlash<Icon name="arrow" size={16} className="transition-transform group-hover:translate-x-0.5"/></span>
      </button>)}
     </div>
-    <ol role="list" className="grid gap-4 border-t pt-6 text-sm sm:grid-cols-3">{[['Hujjatni bering','Word fayl, nusxa olingan matn yoki bo‘sh sahifa.'],['AI o‘tkazadi','MSFO shakli, qayta tasniflash va izohlar bilan qoralama.'],['Tekshiring va yuklab oling','Redaktorda tahrirlang, .docx sifatida saqlang.']].map(([t,d],i)=><li key={t} className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums">{i+1}</span><span><span className="block font-medium">{t}</span><span className="text-muted-foreground">{d}</span></span></li>)}</ol>
+    <ol role="list" className="grid gap-4 border-t pt-6 text-sm sm:grid-cols-3">{[['Hujjatni bering','PDF, Word fayl yoki nusxa olingan matn.'],['AI o‘tkazadi','MSFO shakli, qayta tasniflash va izohlar bilan qoralama.'],['Tekshiring va yuklab oling','Redaktorda tahrirlang, .docx sifatida saqlang.']].map(([t,d],i)=><li key={t} className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums">{i+1}</span><span><span className="block font-medium">{t}</span><span className="text-muted-foreground">{d}</span></span></li>)}</ol>
    </CardContent>
   </Card>}
   <p className="flex items-start gap-2 text-sm text-muted-foreground"><Icon name="shield" size={16} className="mt-0.5 shrink-0"/>AI natijasi — buxgalter tekshiradigan qoralama. Raqamlar o‘ylab topilmaydi: manbada yo‘q qiymatlar «[ma’lumot kerak: …]» deb belgilanadi.</p>
-  <NewMsfoDialog open={!!creating} initialMode={creating?.mode||'statements'} companies={mine} aiConnected={aiConnected} onClose={()=>setCreating(null)} onCreate={async(meta,content,convert)=>{
-   const fileKey=await saveContent(meta,content);const saved={...meta,fileKey};
-   setItems(all=>[saved,...all]);setCreating(null);
+  <NewMsfoDialog open={!!creating} initialMode={creating?.mode||'statements'} companies={mine} aiConnected={aiConnected} aiConsent={aiConsent} setAiConsent={setAiConsent} onClose={()=>setCreating(null)} onCreate={async(draft,convert)=>{
+   let sourceFileKey:string|null=null;
+   if(draft.kind==='pdf'&&draft.file){sourceFileKey=crypto.randomUUID();await putFile(sourceFileKey,draft.file);}
+   const meta:Meta={...draft.meta!,sourceFileKey,sourceType:draft.kind};
+   const fileKey=await saveContent(meta,{version:1,html:draft.html,sourceHtml:draft.html});
+   setItems(all=>[{...meta,fileKey},...all]);setCreating(null);
    sessionStorageSafe.set(`msfo-autoconvert:${meta.id}`,convert?'1':'');
    go(`msfo/${meta.id}`);
   }}/>
@@ -113,80 +122,105 @@ const sessionStorageSafe={get:(k:string)=>{try{return sessionStorage.getItem(k)}
 
 /* ------------------------------ New document ------------------------------ */
 
-function NewMsfoDialog({open,initialMode,companies,aiConnected,onClose,onCreate}:{open:boolean;initialMode:'statements'|'text';companies:any[];aiConnected:boolean;onClose:()=>void;onCreate:(meta:Meta,content:Content,convert:boolean)=>Promise<void>}){
+function NewMsfoDialog({open,initialMode,companies,aiConnected,aiConsent,setAiConsent,onClose,onCreate}:{open:boolean;initialMode:'statements'|'text';companies:any[];aiConnected:boolean;aiConsent:boolean;setAiConsent:(v:boolean)=>void;onClose:()=>void;onCreate:(draft:Draft,convert:boolean)=>Promise<void>}){
  const [mode,setMode]=useState(initialMode);
- const [source,setSource]=useState<'file'|'paste'|'blank'>('file');
- const [file,setFile]=useState<{name:string;html:string;stats:string}|null>(null);
+ const [paste,setPaste]=useState(false);
+ const [file,setFile]=useState<Picked|null>(null);
  const [pasted,setPasted]=useState({text:'',html:''});
  const [title,setTitle]=useState('');
  const [error,setError]=useState('');
  const [busy,setBusy]=useState(false);
- const [convert,setConvert]=useState(true);
+ const [reading,setReading]=useState(false);
  const [drag,setDrag]=useState(false);
+ const [more,setMore]=useState(false);
  const input=useRef<HTMLInputElement>(null);
- useEffect(()=>{if(open){setMode(initialMode);setSource('file');setFile(null);setPasted({text:'',html:''});setTitle('');setError('');setBusy(false);setConvert(true)}},[open,initialMode]);
+ useEffect(()=>{if(open){setMode(initialMode);setPaste(false);setFile(null);setPasted({text:'',html:''});setTitle('');setError('');setBusy(false);setMore(false)}},[open,initialMode]);
+ const ai=aiConnected&&aiConsent;
  async function pick(f?:File|null){
   setError('');if(!f)return;
-  if(/\.doc$/i.test(f.name)){setError('Eski .doc formati o‘qilmaydi. Faylni Word’da «Saqlash › .docx» qilib qayta saqlang.');return;}
-  if(!/\.docx$/i.test(f.name)){setError('Word (.docx) fayl tanlang.');return;}
+  if(/\.doc$/i.test(f.name)){setError('Eski .doc formati o‘qilmaydi. Faylni Word’da .docx qilib saqlang yoki PDF yuklang.');return;}
+  const pdf=/\.pdf$/i.test(f.name),docx=/\.docx$/i.test(f.name);
+  if(!pdf&&!docx){setError('PDF yoki Word (.docx) fayl tanlang.');return;}
   if(f.size>15*1024*1024){setError('Fayl hajmi 15 MBdan oshmasin.');return;}
+  setReading(true);
   try{
-   const blocks=docxToBlocks(new Uint8Array(await f.arrayBuffer()));
-   const tables=blocks.filter((b:any)=>b.type==='table').length;
-   const chars=blocksText(blocks).length;
-   setFile({name:f.name,html:blocksToHtml(blocks),stats:`${blocks.length} ta blok${tables?` · ${tables} ta jadval`:''} · ${chars.toLocaleString('ru-RU')} belgi`});
-   if(!title)setTitle(f.name.replace(/\.docx$/i,''));
+   if(pdf){
+    const head=new TextDecoder().decode(new Uint8Array(await f.slice(0,1024).arrayBuffer()));
+    if(!head.includes('%PDF-'))throw Error('Fayl PDF emas yoki buzilgan.');
+    setFile({kind:'pdf',name:f.name,file:f,stats:`PDF · ${sizeLabel(f.size)}`});
+   }else{
+    const blocks=docxToBlocks(new Uint8Array(await f.arrayBuffer()));
+    const tables=blocks.filter((b:any)=>b.type==='table').length;
+    setFile({kind:'docx',name:f.name,html:blocksToHtml(blocks),stats:`Word · ${sizeLabel(f.size)}${tables?` · ${tables} ta jadval`:''}`});
+   }
   }catch(e:any){setFile(null);setError(e.message||'Fayl o‘qilmadi.');}
+  finally{setReading(false)}
  }
  async function submit(e:React.FormEvent){
   e.preventDefault();if(busy)return;setError('');
-  let html='';let sourceName='';
-  if(source==='file'){if(!file){setError('Word faylni tanlang.');return;}html=file.html;sourceName=file.name;}
-  if(source==='paste'){html=pasted.html?sanitizeHtml(pasted.html):textToHtml(pasted.text);if(!plainText(html)){setError('Matnni joylashtiring.');return;}}
-  const name=title.trim()||(source==='file'?file!.name.replace(/\.docx$/i,''):msfoModes[mode]);
   const f=new FormData(e.currentTarget as HTMLFormElement);
-  const meta=newMsfoItem({id:crypto.randomUUID(),title:name,mode,language:String(f.get('language')||'uz'),companyId:String(f.get('company')||'')||null,sourceName,instruction:String(f.get('instruction')||'').trim().slice(0,1000)} as any);
+  let draft:Draft;
+  if(!paste){
+   if(!file){setError('PDF yoki Word faylni tanlang.');return;}
+   if(file.kind==='pdf'&&!ai){setError(aiConnected?'PDFni MSFOga o‘tkazish uchun AI tahliliga ruxsat bering.':'PDFni o‘qish uchun AI xizmati kerak. Hozir u ulanmagan — Word fayl yoki matn bilan davom eting.');return;}
+   draft={kind:file.kind,name:file.name,file:file.kind==='pdf'?file.file:undefined,html:file.kind==='docx'?file.html:''} as Draft;
+  }else{
+   const html=pasted.html?sanitizeHtml(pasted.html):textToHtml(pasted.text);
+   if(!plainText(html)){setError('Matnni joylashtiring.');return;}
+   draft={kind:'text',name:'',html};
+  }
+  const name=title.trim()||(draft.name?draft.name.replace(/\.(docx|pdf)$/i,''):msfoModes[mode]);
+  draft.meta=newMsfoItem({id:crypto.randomUUID(),title:name,mode,language:String(f.get('language')||'uz'),companyId:String(f.get('company')||'')||null,sourceName:draft.name,instruction:String(f.get('instruction')||'').trim().slice(0,1000)} as any) as Meta;
   setBusy(true);
-  try{await onCreate(meta as Meta,{version:1,html:source==='blank'?'':html,sourceHtml:source==='blank'?'':html},convert&&aiConnected&&source!=='blank');}
+  try{await onCreate(draft,ai);}
   catch(e:any){setError(e.message||'Hujjat saqlanmadi.');setBusy(false);}
  }
  return <Dialog open={open} onOpenChange={v=>!v&&!busy&&onClose()}>
-  <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
-   <DialogHeader><DialogTitle>Yangi MSFO hujjati</DialogTitle><DialogDescription>Hujjat turini va manbani tanlang. Keyin redaktorda ochiladi.</DialogDescription></DialogHeader>
-   <form onSubmit={submit} noValidate><FieldGroup>
-    <fieldset className="flex flex-col gap-3"><legend className="mb-3 text-sm font-medium">Hujjat turi</legend>
-     <div className="grid gap-3 sm:grid-cols-2">{(['statements','text'] as const).map(m=><label key={m} className={cn('flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',mode===m?'border-primary bg-primary/5':'hover:bg-muted/50')}>
-      <input type="radio" name="mode" value={m} checked={mode===m} onChange={()=>setMode(m)} className="mt-0.5 size-4 accent-[var(--primary)]"/>
-      <span className="grid gap-1"><span className="text-sm font-medium">{msfoModes[m]}</span><span className="text-sm text-muted-foreground">{m==='statements'?'Balans, moliyaviy natijalar, pul oqimlari → MSFO shakllari':'Hisob siyosati, izohlar, xatlar → MSFO atamalari'}</span></span>
+  <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
+   <DialogHeader><DialogTitle>Yangi MSFO hujjati</DialogTitle><DialogDescription>Hisobotni yuklang: AI uni MSFO shakliga o‘tkazadi, siz tekshirib Word’da yuklab olasiz.</DialogDescription></DialogHeader>
+   <form onSubmit={submit} noValidate><FieldGroup className="gap-5">
+    <fieldset><legend className="sr-only">Hujjat turi</legend>
+     <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">{(['statements','text'] as const).map(m=><label key={m} className={cn('flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-center text-sm font-medium text-muted-foreground transition-colors has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',mode===m?'bg-background text-foreground shadow-sm':'hover:text-foreground')}>
+      <input type="radio" name="mode" value={m} checked={mode===m} onChange={()=>setMode(m)} className="sr-only"/>
+      <Icon name={m==='statements'?'table':'document'} size={16} className="max-sm:hidden"/>{msfoModes[m]}
      </label>)}</div>
+     <p className="mt-2 text-sm text-muted-foreground">{mode==='statements'?'Balans, moliyaviy natijalar, pul oqimlari → MSFO shakllari va tuzatishlar jadvali.':'Hisob siyosati, izohlar, xatlar → MSFO atamalari va tuzilishi.'}</p>
     </fieldset>
-    <Field>
-     <FieldLabel>Manba</FieldLabel>
-     <Tabs value={source} onValueChange={v=>{setSource(v as any);setError('')}}>
-      <TabsList className="w-full sm:w-fit"><TabsTrigger value="file"><Icon name="upload"/>Word fayl</TabsTrigger><TabsTrigger value="paste"><Icon name="copy"/>Matn</TabsTrigger><TabsTrigger value="blank"><Icon name="document"/>Bo‘sh</TabsTrigger></TabsList>
-      <TabsContent value="file" className="pt-2">
-       <div onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);pick(e.dataTransfer.files[0])}} className={cn('flex flex-col items-center gap-3 rounded-lg border border-dashed p-6 text-center transition-colors',drag?'border-primary bg-primary/5':'bg-muted/30')}>
-        {file?<><FileTile label="DOCX"/><div><p className="text-sm font-medium [overflow-wrap:anywhere]">{file.name}</p><p className="text-sm text-muted-foreground">{file.stats}</p></div><Button type="button" variant="outline" size="sm" onClick={()=>input.current?.click()}>Boshqa fayl</Button></>
-        :<><span className="flex size-10 items-center justify-center rounded-full bg-background ring-1 ring-border"><Icon name="upload"/></span><div><p className="text-sm font-medium">Word faylni shu yerga tashlang</p><p className="text-sm text-muted-foreground">.docx · 15 MBgacha · jadvallar va sarlavhalar saqlanadi</p></div><Button type="button" variant="outline" size="sm" onClick={()=>input.current?.click()}>Fayl tanlash</Button></>}
-        <input ref={input} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" tabIndex={-1} aria-label="Word fayl" onChange={e=>{pick(e.target.files?.[0]);e.target.value=''}}/>
-       </div>
-      </TabsContent>
-      <TabsContent value="paste" className="pt-2">
-       <Textarea aria-label="Hujjat matni" rows={7} placeholder="Word yoki Excel’dan nusxa olib shu yerga joylashtiring (Ctrl+V). Jadvallar saqlanadi." value={pasted.text} onChange={e=>setPasted({text:e.target.value,html:''})} onPaste={e=>{const html=e.clipboardData.getData('text/html');const text=e.clipboardData.getData('text/plain');if(html){e.preventDefault();setPasted({text,html});}}}/>
-       {pasted.html&&<FieldDescription className="mt-2">Formatlangan matn olindi: sarlavha va jadvallar redaktorda ko‘rinadi.</FieldDescription>}
-      </TabsContent>
-      <TabsContent value="blank" className="pt-2"><p className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">Bo‘sh sahifa ochiladi. Matnni o‘zingiz yozasiz yoki joylashtirasiz, keyin «MSFOga o‘tkazish» tugmasini bosasiz.</p></TabsContent>
-     </Tabs>
-    </Field>
-    <div className="grid gap-4 sm:grid-cols-2">
-     <Field className="sm:col-span-2"><FieldLabel htmlFor="msfo-title">Hujjat nomi</FieldLabel><Input id="msfo-title" value={title} maxLength={240} placeholder={source==='file'?'Fayl nomidan olinadi':'Masalan, 2025 yil moliyaviy hisoboti'} onChange={e=>setTitle(e.target.value)}/></Field>
-     <Field><FieldLabel htmlFor="msfo-company">Kompaniya <span className="font-normal text-muted-foreground">Ixtiyoriy</span></FieldLabel><NativeSelect id="msfo-company" name="company" className="w-full" defaultValue=""><NativeSelectOption value="">Tanlanmagan</NativeSelectOption>{companies.map(c=><NativeSelectOption key={c.id} value={c.id}>{c.name}</NativeSelectOption>)}</NativeSelect></Field>
-     <Field><FieldLabel htmlFor="msfo-language">Natija tili</FieldLabel><NativeSelect id="msfo-language" name="language" className="w-full" defaultValue="uz">{Object.entries(msfoLanguages).map(([v,l])=><NativeSelectOption key={v} value={v}>{l as string}</NativeSelectOption>)}</NativeSelect></Field>
-     <Field className="sm:col-span-2"><FieldLabel htmlFor="msfo-instruction">AI uchun qo‘shimcha ko‘rsatma <span className="font-normal text-muted-foreground">Ixtiyoriy</span></FieldLabel><Input id="msfo-instruction" name="instruction" maxLength={1000} placeholder="Masalan: hisobot davri 2025 yil, taqqoslama 2024 yil; valyuta ming so‘m"/></Field>
+
+    {!paste?<div className="flex flex-col gap-2">
+     {file?<div className="flex items-center gap-3 rounded-lg border bg-background p-3">
+      <FileTile label={file.kind==='pdf'?'PDF':'DOCX'} className={file.kind==='pdf'?'border-red-200 bg-red-50 text-red-700':'border-blue-200 bg-blue-50 text-blue-700'}/>
+      <span className="grid min-w-0 flex-1 gap-0.5"><span className="truncate text-sm font-medium">{file.name}</span><span className="text-sm text-muted-foreground">{file.stats}</span></span>
+      <Button type="button" variant="ghost" size="icon" aria-label="Faylni olib tashlash" onClick={()=>setFile(null)}><Icon name="close"/></Button>
+     </div>
+     :<label htmlFor="msfo-file" onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);pick(e.dataTransfer.files[0])}} className={cn('flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors hover:border-primary/50 hover:bg-primary/5 has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50',drag?'border-primary bg-primary/5':'border-border bg-muted/30')}>
+      <span aria-hidden="true" className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">{reading?<Spinner/>:<Icon name="upload" size={20}/>}</span>
+      <span className="grid gap-1"><span className="text-sm font-medium">{reading?'Fayl o‘qilmoqda…':'Faylni tanlang yoki shu yerga tashlang'}</span><span className="text-sm text-muted-foreground">PDF (skaner ham bo‘ladi) yoki Word .docx · 15 MBgacha</span></span>
+     </label>}
+     <input ref={input} id="msfo-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" aria-label="PDF yoki Word fayl" onChange={e=>{pick(e.target.files?.[0]);e.target.value=''}}/>
+     <Button type="button" variant="link" size="sm" className="h-auto self-start px-0 text-muted-foreground" onClick={()=>{setPaste(true);setError('')}}><Icon name="copy"/>Fayl yo‘qmi? Matnni joylashtiring</Button>
     </div>
-    {source!=='blank'&&<div className="flex items-start gap-3"><Checkbox id="msfo-convert" className="mt-0.5" checked={convert&&aiConnected} disabled={!aiConnected} onCheckedChange={v=>setConvert(v===true)}/><Label htmlFor="msfo-convert" className="leading-snug font-normal">Ochilgach darhol AI bilan MSFOga o‘tkazish{!aiConnected&&<span className="text-muted-foreground"> — AI ulanmagan</span>}</Label></div>}
+    :<Field>
+     <FieldLabel htmlFor="msfo-paste">Hujjat matni</FieldLabel>
+     <Textarea id="msfo-paste" autoFocus rows={7} placeholder="Word yoki Excel’dan nusxa olib shu yerga joylashtiring (Ctrl+V). Jadvallar saqlanadi." value={pasted.text} onChange={e=>setPasted({text:e.target.value,html:''})} onPaste={e=>{const html=e.clipboardData.getData('text/html');const text=e.clipboardData.getData('text/plain');if(html){e.preventDefault();setPasted({text,html});}}}/>
+     {pasted.html&&<FieldDescription>Formatlangan matn olindi: sarlavha va jadvallar saqlanadi.</FieldDescription>}
+     <Button type="button" variant="link" size="sm" className="h-auto self-start px-0 text-muted-foreground" onClick={()=>{setPaste(false);setError('')}}><Icon name="upload"/>Fayl yuklash</Button>
+    </Field>}
+
+    <Collapsible open={more} onOpenChange={setMore} className="rounded-lg border">
+     <CollapsibleTrigger asChild><Button type="button" variant="ghost" className="group/trigger h-auto min-h-11 w-full justify-between rounded-lg px-3.5 py-2 font-normal"><span className="grid text-left"><span className="text-sm font-medium">Qo‘shimcha sozlamalar</span><span className="text-sm text-muted-foreground">Nom, kompaniya, natija tili, AI uchun izoh</span></span><Icon name="down" className="text-muted-foreground transition-transform group-data-[state=open]/trigger:rotate-180"/></Button></CollapsibleTrigger>
+     <CollapsibleContent forceMount className="grid gap-4 border-t px-3.5 py-4 data-[state=closed]:hidden sm:grid-cols-2">
+      <Field className="sm:col-span-2"><FieldLabel htmlFor="msfo-title">Hujjat nomi</FieldLabel><Input id="msfo-title" value={title} maxLength={240} placeholder={file?file.name.replace(/\.(docx|pdf)$/i,''):'Masalan, 2025 yil moliyaviy hisoboti'} onChange={e=>setTitle(e.target.value)}/></Field>
+      <Field><FieldLabel htmlFor="msfo-company">Kompaniya</FieldLabel><NativeSelect id="msfo-company" name="company" className="w-full" defaultValue=""><NativeSelectOption value="">Tanlanmagan</NativeSelectOption>{companies.map(c=><NativeSelectOption key={c.id} value={c.id}>{c.name}</NativeSelectOption>)}</NativeSelect></Field>
+      <Field><FieldLabel htmlFor="msfo-language">Natija tili</FieldLabel><NativeSelect id="msfo-language" name="language" className="w-full" defaultValue="uz">{Object.entries(msfoLanguages).map(([v,l])=><NativeSelectOption key={v} value={v}>{l as string}</NativeSelectOption>)}</NativeSelect></Field>
+      <Field className="sm:col-span-2"><FieldLabel htmlFor="msfo-instruction">AI uchun izoh</FieldLabel><Textarea id="msfo-instruction" name="instruction" rows={2} maxLength={1000} placeholder="Masalan: hisobot davri 2025 yil, taqqoslama 2024 yil; valyuta ming so‘m"/></Field>
+     </CollapsibleContent>
+    </Collapsible>
+
+    {aiConnected&&<AiConsent checked={aiConsent} onCheckedChange={setAiConsent} onHint="Ochilishi bilan AI hujjatni MSFO shakliga o‘tkazadi." offHint="Hujjat redaktorda ochiladi, MSFOga o‘zingiz o‘tkazasiz."/>}
+    {!aiConnected&&<Alert><Icon name="alert"/><AlertDescription>AI xizmati hozir ulanmagan: Word yoki matn redaktorda ochiladi, MSFOga o‘tkazish keyinroq ishlaydi.</AlertDescription></Alert>}
     {error&&<FieldError role="alert">{error}</FieldError>}
-    <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={onClose}>Bekor qilish</Button><Button type="submit" disabled={busy}>{busy?<Spinner/>:<Icon name="arrow"/>}Redaktorda ochish</Button></DialogFooter>
+    <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={onClose}>Bekor qilish</Button><Button type="submit" disabled={busy||reading}>{busy?<Spinner/>:<Icon name={ai?'spark':'arrow'}/>}{ai?'MSFOga o‘tkazish':'Redaktorda ochish'}</Button></DialogFooter>
    </FieldGroup></form>
   </DialogContent>
  </Dialog>;
@@ -194,7 +228,8 @@ function NewMsfoDialog({open,initialMode,companies,aiConnected,onClose,onCreate}
 
 /* ------------------------------ Workspace (editor + AI panel) ------------------------------ */
 
-function MsfoWorkspace({item,setItems,companyName,go,aiConnected}:{item:Meta;setItems:(fn:(all:Meta[])=>Meta[])=>void;companyName?:string;go:(r:string)=>void;aiConnected:boolean}){
+function MsfoWorkspace({item,setItems,companyName,go,aiConnected:connected,aiConsent,setAiConsent}:{item:Meta;setItems:(fn:(all:Meta[])=>Meta[])=>void;companyName?:string;go:(r:string)=>void;aiConnected:boolean;aiConsent:boolean;setAiConsent:(v:boolean)=>void}){
+ const aiConnected=connected&&aiConsent;
  const editor=useRef<EditorHandle>(null);
  const [content,setContent]=useState<Content|null>(null);
  const [loadError,setLoadError]=useState('');
@@ -207,6 +242,12 @@ function MsfoWorkspace({item,setItems,companyName,go,aiConnected}:{item:Meta;set
  const [confirmConvert,setConfirmConvert]=useState(false);
  const [missing,setMissing]=useState(0);
  const [editorKey,setEditorKey]=useState(0);
+ const [elapsed,setElapsed]=useState(0);
+ const [pdfUrl,setPdfUrl]=useState('');
+ const alive=useRef(true);
+ useEffect(()=>()=>{alive.current=false},[]);
+ useEffect(()=>{if(!converting){setElapsed(0);return}const t0=Date.now();const t=setInterval(()=>setElapsed(Math.round((Date.now()-t0)/1000)),1000);return()=>clearInterval(t)},[converting]);
+ useEffect(()=>{if(item.sourceType!=='pdf'||!item.sourceFileKey)return;let url='';let live=true;getFile(item.sourceFileKey,item.sourceName||'manba.pdf').then(f=>{if(f&&live){url=URL.createObjectURL(new Blob([f],{type:'application/pdf'}));setPdfUrl(url)}}).catch(()=>{});return()=>{live=false;if(url)URL.revokeObjectURL(url)}},[item.sourceFileKey]);// eslint-disable-line react-hooks/exhaustive-deps
  const meta=useRef(item);meta.current=item;
  const contentRef=useRef<Content|null>(null);contentRef.current=content;
  const timer=useRef<any>(null);
@@ -235,25 +276,55 @@ function MsfoWorkspace({item,setItems,companyName,go,aiConnected}:{item:Meta;set
  useEffect(()=>()=>{if(timer.current){clearTimeout(timer.current);void save()}},[save]);
  useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(status!=='saved'){e.preventDefault();e.returnValue=''}};addEventListener('beforeunload',warn);return()=>removeEventListener('beforeunload',warn)},[status]);
 
- async function convert(){
-  setConfirmConvert(false);
+ /** Starts (or resumes) a background conversion and polls it until the result arrives. */
+ async function convert(resume?:{id:string}){
+  setConfirmConvert(false);setAiError('');
   const html=editor.current?.getHtml()||content?.html||'';
-  const source=plainText(html)?html:content?.sourceHtml||'';
-  if(!plainText(source)){setAiError('Avval hujjatga matn kiriting yoki joylashtiring.');return;}
-  setAiError('');setConverting(true);
+  let job=resume;
+  setConverting(true);
   try{
-   const result=await callMsfo({action:'convert',mode:item.mode,language:item.language,title:item.title,instruction:item.instruction||'',source});
-   const previous=html;
+   if(!job){
+    const base={action:'convert',mode:item.mode,language:item.language,title:item.title,instruction:item.instruction||''};
+    let body:any;
+    if(plainText(html))body={...base,source:html};
+    else if(plainText(content?.sourceHtml||''))body={...base,source:content!.sourceHtml};
+    else if(item.sourceType==='pdf'&&item.sourceFileKey){
+     const name=/\.pdf$/i.test(item.sourceName||'')?item.sourceName:'manba.pdf';
+     if(storageMode()==='server')body={...base,file:{name,fileKey:item.sourceFileKey}};
+     else{const pdf=await getFile(item.sourceFileKey,item.sourceName||'manba.pdf');if(!pdf)throw Error('Asl PDF fayl topilmadi. Uni qayta yuklang.');body={...base,file:{name,base64:await toBase64(pdf)}};}
+    }else throw Error('Avval hujjatga matn kiriting yoki fayl yuklang.');
+    const response=await request('/api/msfo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    job=(await response.json()).job;
+    if(!job?.id)throw Error('AI javobi kutilgan shaklda emas.');
+    setItems(all=>all.map(x=>x.id===item.id?{...x,job:{id:job!.id,startedAt:new Date().toISOString()}}:x));
+   }
+   let result:any=null,misses=0;
+   while(alive.current){
+    await wait(3000);if(!alive.current)return;
+    let data:any;
+    try{data=await (await request(`/api/msfo/jobs/${encodeURIComponent(job.id)}`)).json();misses=0;}
+    catch(e:any){if(e.status>=400&&e.status<500)throw e;if(++misses>10)throw Error('AI xizmati bilan aloqa uzildi. Qayta urinib ko‘ring.');continue;}
+    if(data.status==='processing')continue;
+    if(data.status==='error')throw Error(data.error||'AI hujjatni o‘tkaza olmadi.');
+    result=data.result;break;
+   }
+   if(!result)return;
+   const previous=editor.current?.getHtml()||'';
    const clean=sanitizeHtml(result.documentHtml);
    editor.current?.setHtml(clean);
-   const next:Content={version:1,html:clean,sourceHtml:content?.sourceHtml||source,ai:{summary:result.summary,changes:result.changes,limitations:result.limitations,model:result.model,createdAt:result.createdAt}};
+   const next:Content={version:1,html:clean,sourceHtml:content?.sourceHtml||'',ai:{summary:result.summary,changes:result.changes,limitations:result.limitations,model:result.model,createdAt:result.createdAt}};
    contentRef.current=next;setContent(next);setTab('msfo');
-   setItems(all=>all.map(x=>x.id===item.id?{...x,converted:true}:x));
+   setItems(all=>all.map(x=>x.id===item.id?{...x,converted:true,job:null}:x));
    await save();countMissing();
-   toast.success('Hujjat MSFO shakliga o‘tkazildi. Izohlarni tekshiring.',{action:{label:'Bekor qilish',onClick:()=>{editor.current?.setHtml(previous);changed()}}});
-  }catch(e:any){setAiError(e.message||'AI so‘rovi bajarilmadi.')}
-  finally{setConverting(false)}
+   toast.success('Hujjat MSFO shakliga o‘tkazildi. Izohlarni tekshiring.',previous?{action:{label:'Bekor qilish',onClick:()=>{editor.current?.setHtml(previous);changed()}}}:undefined);
+  }catch(e:any){
+   if(!alive.current)return;
+   setItems(all=>all.map(x=>x.id===item.id?{...x,job:null}:x));
+   setAiError(e.message||'AI so‘rovi bajarilmadi.');
+  }finally{if(alive.current)setConverting(false)}
  }
+ // A conversion started earlier keeps running on the server; reopening the document picks it up.
+ useEffect(()=>{if(content&&item.job?.id&&!converting&&Date.now()-Date.parse(item.job.startedAt)<6*60*60*1000)void convert({id:item.job.id})},[content===null]);// eslint-disable-line react-hooks/exhaustive-deps
  useEffect(()=>{if(content&&sessionStorageSafe.get(`msfo-autoconvert:${item.id}`)){sessionStorageSafe.set(`msfo-autoconvert:${item.id}`,'');void convert()}},[content===null]);// eslint-disable-line react-hooks/exhaustive-deps
 
  function exportDocx(which:'msfo'|'source'){
@@ -297,17 +368,18 @@ function MsfoWorkspace({item,setItems,companyName,go,aiConnected}:{item:Meta;set
 
   <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
    <Tabs value={tab} onValueChange={setTab} className="min-w-0 gap-3">
-    <TabsList aria-label="Ko‘rinish"><TabsTrigger value="msfo"><Icon name="msfo"/>MSFO hujjati</TabsTrigger><TabsTrigger value="source" disabled={!content?.sourceHtml}><Icon name="document"/>Asl hujjat</TabsTrigger></TabsList>
+    <TabsList aria-label="Ko‘rinish"><TabsTrigger value="msfo"><Icon name="msfo"/>MSFO hujjati</TabsTrigger><TabsTrigger value="source" disabled={!content?.sourceHtml&&!pdfUrl}><Icon name="document"/>Asl hujjat</TabsTrigger></TabsList>
     <TabsContent value="msfo" forceMount className="relative min-w-0 data-[state=inactive]:hidden">
      {content?<DocumentEditor key={editorKey} ref={editor} label={`${item.title} — MSFO hujjati`} initialHtml={content.html} onChange={changed} onSelection={setHasSelection}/>
       :<div className="flex h-96 items-center justify-center rounded-lg border bg-muted/30 text-sm text-muted-foreground"><Spinner className="mr-2"/>Hujjat ochilmoqda…</div>}
      {converting&&<div role="status" aria-live="polite" className="absolute inset-0 z-20 flex items-start justify-center rounded-lg bg-background/80 pt-32 backdrop-blur-[2px]">
-      <div className="flex max-w-sm flex-col items-center gap-3 rounded-xl border bg-background p-6 text-center shadow-lg"><Spinner className="size-6 text-primary"/><p className="font-medium">AI hujjatni MSFOga o‘tkazmoqda</p><p className="text-sm text-muted-foreground">Katta hisobotlar uchun 1–3 daqiqa ketadi. Sahifani yopmang — natija shu yerda paydo bo‘ladi.</p></div>
+      <div className="flex max-w-sm flex-col items-center gap-3 rounded-xl border bg-background p-6 text-center shadow-lg"><Spinner className="size-6 text-primary"/><p className="font-medium">AI hujjatni MSFOga o‘tkazmoqda</p><p className="text-sm text-muted-foreground tabular-nums">{elapsed<60?`${elapsed} soniya`:`${Math.floor(elapsed/60)} daqiqa ${elapsed%60} soniya`} · odatda 1–4 daqiqa</p><p className="text-sm text-pretty text-muted-foreground">Sahifani yopsangiz ham ish to‘xtamaydi: hujjatni qayta ochganingizda natija shu yerda bo‘ladi.</p></div>
      </div>}
     </TabsContent>
     <TabsContent value="source" className="min-w-0">
      <p className="mb-3 text-sm text-muted-foreground">Yuklangan asl hujjat{item.sourceName?` · ${item.sourceName}`:''}. Faqat ko‘rish uchun — tahrir MSFO hujjatida qilinadi.</p>
-     <div className="overflow-x-auto rounded-lg border bg-muted/50 py-4 sm:p-8"><article aria-label="Asl hujjat" className={pageClass} dangerouslySetInnerHTML={{__html:sanitizeHtml(content?.sourceHtml||'')}}/></div>
+     {pdfUrl&&!content?.sourceHtml?<iframe title="Asl PDF hujjat" src={pdfUrl} className="h-[75vh] w-full rounded-lg border bg-muted/50"/>
+     :<div className="overflow-x-auto rounded-lg border bg-muted/50 py-4 sm:p-8"><article aria-label="Asl hujjat" className={pageClass} dangerouslySetInnerHTML={{__html:sanitizeHtml(content?.sourceHtml||'')}}/></div>}
     </TabsContent>
    </Tabs>
 
@@ -316,6 +388,7 @@ function MsfoWorkspace({item,setItems,companyName,go,aiConnected}:{item:Meta;set
      <CardHeader className="px-4"><CardTitle className="flex items-center gap-2 text-base"><Icon name="spark" className="text-primary"/>AI xulosasi</CardTitle>
       {ai&&<CardDescription>{formatDate(ai.createdAt)} · {ai.changes?.length||0} ta izoh</CardDescription>}</CardHeader>
      <CardContent className="flex flex-col gap-3 px-4">
+      {connected&&!aiConsent&&<AiConsent checked={false} onCheckedChange={setAiConsent} offHint="Yoqsangiz, hujjatni MSFOga o‘tkazish mumkin bo‘ladi."/>}
       {!ai?<><p className="text-sm text-muted-foreground">{aiConnected?'«MSFOga o‘tkazish» tugmasini bosing: AI hujjatni MSFO shakliga o‘tkazadi va har bir o‘zgarishni standart bilan izohlaydi.':'AI xizmati ulanmagan. Hujjatni qo‘lda tahrirlab, .docx qilib yuklab olishingiz mumkin.'}</p>
        {item.mode==='statements'&&<ul role="list" className="flex flex-col gap-1.5 text-sm">{['Moliyaviy holat to‘g‘risidagi hisobot','Foyda yoki zarar va BUD','Kapital va pul oqimlari','Transformatsion tuzatishlar jadvali'].map(x=><li key={x} className="flex items-center gap-2"><Icon name="check" size={14} className="text-muted-foreground"/>{x}</li>)}</ul>}</>
       :<>
@@ -337,7 +410,7 @@ function MsfoWorkspace({item,setItems,companyName,go,aiConnected}:{item:Meta;set
    </aside>
   </div>
 
-  <AlertDialog open={confirmConvert} onOpenChange={setConfirmConvert}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Hujjat qayta o‘tkazilsinmi?</AlertDialogTitle><AlertDialogDescription>AI redaktordagi joriy matnni qaytadan MSFO shakliga o‘tkazadi va natija bilan almashtiradi. Keyin «Bekor qilish» orqali oldingi holatga qaytishingiz mumkin.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Bekor qilish</AlertDialogCancel><AlertDialogAction onClick={convert}><Icon name="spark"/>Qayta o‘tkazish</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+  <AlertDialog open={confirmConvert} onOpenChange={setConfirmConvert}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Hujjat qayta o‘tkazilsinmi?</AlertDialogTitle><AlertDialogDescription>AI redaktordagi joriy matnni qaytadan MSFO shakliga o‘tkazadi va natija bilan almashtiradi. Keyin «Bekor qilish» orqali oldingi holatga qaytishingiz mumkin.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Bekor qilish</AlertDialogCancel><AlertDialogAction onClick={()=>void convert()}><Icon name="spark"/>Qayta o‘tkazish</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
   <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>«{item.title}» o‘chirilsinmi?</AlertDialogTitle><AlertDialogDescription>Hujjat MSFO ro‘yxatidan olib tashlanadi. Kerak bo‘lsa, avval .docx qilib yuklab oling.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Bekor qilish</AlertDialogCancel><AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" onClick={()=>{clearTimeout(timer.current);timer.current=null;setStatus('saved');setItems(all=>all.filter(x=>x.id!==item.id));go('msfo');toast.success('Hujjat o‘chirildi.')}}><Icon name="trash"/>O‘chirish</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
  </>;
 }

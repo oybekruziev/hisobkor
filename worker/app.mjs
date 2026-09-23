@@ -1,5 +1,5 @@
 import {randomToken, sha256Hex, verifyPassword, pbkdf2, bytesToHex} from './crypto.mjs';
-import {runMsfo, validateMsfoRequest} from '../msfo-service.mjs';
+import {runMsfo, startMsfo, pollMsfo, validJobId, validateMsfoRequest, MAX_MSFO_BODY, MAX_PDF_BYTES} from '../msfo-service.mjs';
 import {handleAdmin, isAdminUser} from './admin.mjs';
 import {eligibleDocument, MAX_FILE_BYTES, MAX_WORKSPACE_BYTES, safeDocumentName, validFileId, validateFile, validateWorkspaceState} from './validation.mjs';
 
@@ -322,11 +322,28 @@ async function getJob(auth, jobId, env) {
   return json(result);
 }
 
-/** MSFO conversion runs inline (no queue): the user waits in the editor. A per-account daily budget caps cost. */
+/**
+ * MSFO: a conversion starts an OpenAI background response and the browser polls for it; a short
+ * rewrite of a selection still runs inline. Starting or rewriting counts against a per-account daily
+ * budget, and every job id is bound to the account that started it.
+ */
 async function msfo(request, auth, env) {
   if (!env.OPENAI_API_KEY) throw new HttpError(503, 'AI xizmati sozlanmagan.');
-  const body = await readJSON(request, 640 * 1024);
-  try { validateMsfoRequest(body); } catch (error) { throw new HttpError(400, error.message); }
+  const body = await readJSON(request, MAX_MSFO_BODY);
+  // A PDF the user already stored is read from R2 here instead of being uploaded a second time.
+  if (body?.file?.fileKey && !body.file.base64) {
+    const key = body.file.fileKey;
+    if (!validFileId(key)) throw new HttpError(400, 'Fayl identifikatori yaroqsiz.');
+    const row = await env.DB.prepare(`SELECT r2_key,content_type,size FROM file_versions
+      WHERE account_id=? AND workspace_id=? AND logical_id=? AND is_current=1 ORDER BY created_at DESC LIMIT 1`).bind(auth.accountId, auth.workspaceId, key).first();
+    if (!row || row.content_type !== 'application/pdf') throw new HttpError(404, 'Asl PDF fayl topilmadi. Uni qayta yuklang.');
+    if (Number(row.size) > MAX_PDF_BYTES) throw new HttpError(400, 'PDF fayl 15 MBdan oshmasin.');
+    const object = await env.DOCUMENTS.get(row.r2_key);
+    if (!object || !('body' in object)) throw new HttpError(503, 'Fayl omborida nomuvofiqlik bor.');
+    body.file = {name: body.file.name, base64: Buffer.from(await new Response(object.body).arrayBuffer()).toString('base64')};
+  }
+  let input;
+  try { input = validateMsfoRequest(body); } catch (error) { throw new HttpError(400, error.message); }
   const now = nowMs();
   const day = 24 * 60 * 60 * 1000;
   const limit = Math.max(1, Math.min(500, Number(env.AI_MAX_DAILY_MSFO) || 60));
@@ -335,8 +352,32 @@ async function msfo(request, auth, env) {
     ON CONFLICT(bucket) DO UPDATE SET attempts=login_limits.attempts+1
     RETURNING attempts`).bind(bucket, now + day).first();
   if (!row || Number(row.attempts) > limit) throw new HttpError(429, 'Bugungi MSFO AI limiti tugadi. Ertaga qayta urinib ko‘ring.');
-  try { return json({result: await runMsfo(body, {key: env.OPENAI_API_KEY, model: env.OPENAI_MODEL || 'gpt-5.6-luna'})}); }
-  catch (error) { throw new HttpError(502, error?.name === 'TimeoutError' ? 'AI javobi juda uzoq kechikdi. Hujjatni qismlarga bo‘lib ko‘ring.' : (error?.message || 'AI so‘rovi bajarilmadi.')); }
+  const options = {key: env.OPENAI_API_KEY, model: env.OPENAI_MODEL || 'gpt-5.6-luna'};
+  try {
+    if (input.action === 'convert') {
+      const job = await startMsfo(body, options);
+      await env.DB.prepare('INSERT INTO login_limits(bucket, attempts, expires_at) VALUES(?, 0, ?) ON CONFLICT(bucket) DO NOTHING')
+        .bind(await sha256Hex(`msfojob:${auth.accountId}:${job.id}`), now + day).run();
+      return json({job});
+    }
+    return json({result: await runMsfo(body, options)});
+  } catch (error) {
+    throw new HttpError(502, error?.name === 'TimeoutError' ? 'AI javobi juda uzoq kechikdi. Qayta urinib ko‘ring.' : (error?.message || 'AI so‘rovi bajarilmadi.'));
+  }
+}
+
+async function msfoJob(auth, id, env) {
+  if (!env.OPENAI_API_KEY) throw new HttpError(503, 'AI xizmati sozlanmagan.');
+  if (!validJobId(id)) throw new HttpError(400, 'Topshiriq identifikatori yaroqsiz.');
+  const owned = await env.DB.prepare('SELECT 1 FROM login_limits WHERE bucket=? AND expires_at>?')
+    .bind(await sha256Hex(`msfojob:${auth.accountId}:${id}`), nowMs()).first();
+  if (!owned) throw new HttpError(404, 'Topshiriq topilmadi yoki muddati o‘tgan. Qayta o‘tkazib ko‘ring.');
+  try { return json(await pollMsfo(id, {key: env.OPENAI_API_KEY, model: env.OPENAI_MODEL || 'gpt-5.6-luna'})); }
+  catch (error) {
+    // A dropped connection or timeout is worth another poll; anything else ends the job.
+    if (error?.name === 'TimeoutError' || error instanceof TypeError) throw new HttpError(502, 'AI xizmati bilan aloqa uzildi.');
+    return json({status: 'error', error: error?.message || 'AI so‘rovi bajarilmadi.'});
+  }
 }
 
 async function serveAsset(request, env, pathname) {
@@ -400,6 +441,8 @@ export function createWorker() {
         if (request.method === 'GET' && url.pathname === '/api/ai/status') return json({connected: !!env.OPENAI_API_KEY, managed: true, background: true});
         if (request.method === 'POST' && url.pathname === '/api/ai/analyze') return await analyze(request, auth, env);
         if (request.method === 'POST' && url.pathname === '/api/msfo') return await msfo(request, auth, env);
+        const msfoJobMatch = url.pathname.match(/^\/api\/msfo\/jobs\/([^/]+)$/);
+        if (request.method === 'GET' && msfoJobMatch) return await msfoJob(auth, decodeURIComponent(msfoJobMatch[1]), env);
         const jobMatch = url.pathname.match(/^\/api\/ai\/jobs\/([^/]+)$/);
         if (jobMatch && request.method === 'GET') return await getJob(auth, decodeURIComponent(jobMatch[1]), env);
         return fail(404, 'API manzili topilmadi.');

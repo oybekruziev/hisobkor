@@ -1,9 +1,9 @@
 # MSFO redaktori
 
-Word (.docx) hujjatini yoki nusxa olingan matnni AI yordamida MSFO (IFRS) shakliga o‘tkazish, Word’ga o‘xshash redaktorda tahrirlash va .docx qilib yuklab olish.
+PDF yoki Word (.docx) hujjatini, yoki nusxa olingan matnni AI yordamida MSFO (IFRS) shakliga o‘tkazish, Word’ga o‘xshash redaktorda tahrirlash va .docx qilib yuklab olish.
 
 ## Oqim
-1. `#msfo` → «Yangi hujjat»: tur (Moliyaviy hisobot / Matnli hujjat), manba (.docx, joylashtirilgan matn yoki bo‘sh sahifa), kompaniya, natija tili, qo‘shimcha ko‘rsatma.
+1. `#msfo` → «Yangi hujjat»: tur (Moliyaviy hisobot / Matnli hujjat), manba (PDF, .docx yoki joylashtirilgan matn); nom, kompaniya, til va ko‘rsatma «Qo‘shimcha sozlamalar» ichida; «AI tahliliga ruxsat» (standart yoqilgan, O‘zbekistondan tashqaridagi server haqida ogohlantirish), kompaniya, natija tili, qo‘shimcha ko‘rsatma.
 2. `.docx` brauzerda o‘qiladi (`src/msfo/docx.mjs`, `fflate`): sarlavhalar, qalin/kursiv/tagiga chizilgan, tekislash, ro‘yxatlar, jadvallar (colspan/rowspan).
 3. `POST /api/msfo` (`action: convert`) → `msfo-service.mjs` → OpenAI Responses API, qat’iy JSON sxema: `title, summary, documentHtml, changes[{severity, title, detail, standard}], limitations`.
 4. Redaktor (`src/msfo/Editor.tsx`): contentEditable sahifa + formatlash paneli, jadval qator/ustun amallari, Word’dan formatli joylashtirish.
@@ -22,3 +22,10 @@ Word (.docx) hujjatini yoki nusxa olingan matnni AI yordamida MSFO (IFRS) shakli
 ## Cloudflare
 - Yangi migratsiya yo‘q. Kunlik limit `login_limits` jadvalidagi `msfo:<account>:<kun>` bucket bilan; `AI_MAX_DAILY_MSFO` (standart 60).
 - `OPENAI_API_KEY` va `OPENAI_MODEL` mavjud sozlamalardan olinadi. So‘rov sinxron (1–3 daqiqa), timeout 280 s.
+
+## Fon rejimi va PDF (2026-09-23)
+- `POST /api/msfo` (`action: convert`) OpenAI Responses API'ga `background: true, store: true` bilan yuboradi va darhol `{job:{id}}` qaytaradi; brauzer `GET /api/msfo/jobs/:id` ni har 3 soniyada so‘raydi. Natija o‘qilgach javob OpenAI'dan `DELETE` qilinadi.
+- Job id hisobga bog‘lanadi: `login_limits` jadvalida `sha256("msfojob:<account>:<id>")` qatori (24 soat). Migratsiya kerak emas.
+- PDF manba: brauzer faylni saqlaydi (`sourceFileKey`), o‘tkazishda base64 qilib yuboradi (15 MBgacha); model uni `input_file` sifatida o‘qiydi (skanlar ham). «Asl hujjat» yorlig‘ida PDF iframe’da ko‘rinadi.
+- Sahifa yopilsa ham topshiriq serverda davom etadi; `item.job` saqlanadi va hujjat qayta ochilganda so‘rash davom etadi.
+- `aiAuto` = AI roziligi: o‘chirilsa avtomatik tekshiruv va MSFO o‘tkazish ishlamaydi.

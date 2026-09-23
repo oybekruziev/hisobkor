@@ -71,7 +71,7 @@ const benefits=[
 ] as const;
 
 const msfoPoints=[
-  [MicrosoftWordLogo,'Word faylni yuklang','.docx fayl yoki nusxa olingan matn: sarlavhalar, ro‘yxatlar va jadvallar saqlanadi.'],
+  [MicrosoftWordLogo,'PDF yoki Word yuklang','PDF (skanerlangan ham), .docx fayl yoki nusxa olingan matn: jadvallar va sarlavhalar saqlanadi.'],
   [Table,'MSFO shakllari','Moliyaviy holat, foyda yoki zarar, pul oqimlari va transformatsion tuzatishlar jadvali.'],
   [MagicWand,'Tanlangan qismni qayta yozish','Paragraf yoki jadvalni belgilab, AI’dan MSFO atamalariga moslashni so‘raysiz.'],
   [FileArrowDown,'Word’ga qaytaring','Redaktorda tuzatib, natijani .docx fayl sifatida yuklab olasiz.'],
@@ -88,7 +88,7 @@ export const questions=[
   ['Bir nechta kompaniya bilan ishlasam bo‘ladimi?','Ha. Bitta hisobga bir nechta kompaniya qo‘shasiz. Har birining hujjatlari, rekvizitlari va amallar tarixi alohida saqlanadi.'],
   ['Qaysi fayllarni yuklash mumkin?','PDF, JPG, PNG, XLSX va CSV fayllari. Har bir fayl 25 MBgacha bo‘lishi mumkin.'],
   ['AI hujjatni o‘zi qabul qiladimi?','Yo‘q. AI hujjatni o‘qiydi va yordamchi izoh qoldiradi. AI xato va ziddiyatlarni topib ko‘rsatadi, hujjatni qabul qilish qarorini esa buxgalter beradi.'],
-  ['MSFO redaktori nima qiladi?','Word (.docx) hujjatini yoki nusxa olingan matnni MSFO (IFRS) shakliga o‘tkazadi: moliyaviy hisobot uchun MSFO shakllari va transformatsion tuzatishlar jadvali, matnli hujjat uchun MSFO atamalari va tuzilishi. Natijani redaktorda tahrirlab, .docx qilib yuklab olasiz.'],
+  ['MSFO redaktori nima qiladi?','PDF yoki Word (.docx) hujjatini, yoki nusxa olingan matnni MSFO (IFRS) shakliga o‘tkazadi: moliyaviy hisobot uchun MSFO shakllari va transformatsion tuzatishlar jadvali, matnli hujjat uchun MSFO atamalari va tuzilishi. Natijani redaktorda tahrirlab, .docx qilib yuklab olasiz.'],
   ['AI raqamlarni o‘zi to‘ldirib qo‘ymaydimi?','Yo‘q. Manbada yo‘q qiymat «[ma’lumot kerak]» deb belgilanadi va har bir o‘zgarish standart (IAS/IFRS) bilan izohlanadi. Natija — buxgalter tekshiradigan qoralama.'],
   ['Hujjatlarim maxfiyligi qanday?','Fayllar yopiq saqlanadi va faqat sizning hisobingiz orqali ochiladi. Avtomatik tekshiruv va MSFOga o‘tkazish vaqtida hujjat mazmuni AI tahlil xizmatiga yuboriladi.'],
   ['Oylik va doimiy hujjatlar qanday ajratiladi?','Oylik, ya’ni davr hujjatlari va doimiy hujjatlar (ustav, guvohnoma, shartnomalar) alohida saqlanadi. Davrni barcha talablar bajarilganda yopasiz.'],
@@ -193,7 +193,7 @@ export function Landing(){
 
       <section id="msfo" className="scroll-mt-20 border-t border-zinc-950/5 py-20 sm:py-28">
         <div className={container}>
-          <HeadingGroup eyebrow="MSFO redaktori" title="Word hujjatini MSFO shakliga o‘tkazing."
+          <HeadingGroup eyebrow="MSFO redaktori" title="PDF yoki Word hisobotni MSFO shakliga o‘tkazing."
             text="AI milliy standart bo‘yicha tuzilgan hisobot yoki matnni MSFO (IFRS) tuzilishi va atamalariga moslaydi. Siz Word’ga o‘xshash redaktorda tekshirib, tahrirlaysiz."/>
           <figure className="mt-14" data-reveal>
             <Screenshot src="/shots/msfo.webp" alt="Hisobkor MSFO redaktori: moliyaviy holat to‘g‘risidagi hisobot jadvali, formatlash paneli va o‘ng tomonda standartlar bilan AI izohlari."/>

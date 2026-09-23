@@ -32,6 +32,11 @@ class Statement {
       this.db.limits.set(this.args[0], attempts);
       return {attempts};
     }
+    if (this.sql.startsWith('SELECT r2_key,content_type,size FROM file_versions')) {
+      const row = this.db.files.find(file => file.account_id === this.args[0] && file.workspace_id === this.args[1] && file.logical_id === this.args[2] && file.is_current);
+      return row ? {r2_key: row.r2_key, content_type: row.content_type, size: row.size} : null;
+    }
+    if (this.sql.startsWith('SELECT 1 FROM login_limits')) return this.db.limits?.has(this.args[0]) ? {1: 1} : null;
     throw new Error(`Unhandled first: ${this.sql}`);
   }
   async all() {
@@ -53,6 +58,7 @@ class Statement {
       this.db.files.push({id, account_id, workspace_id, logical_id, r2_key, content_type, size, sha256, created_at, is_current: 1});
       return {meta: {changes: 1}};
     }
+    if (this.sql.startsWith('INSERT INTO login_limits') && this.sql.endsWith('DO NOTHING')) { this.db.limits ||= new Map(); if (!this.db.limits.has(this.args[0])) this.db.limits.set(this.args[0], 0); return {meta: {changes: 1}}; }
     throw new Error(`Unhandled run: ${this.sql}`);
   }
 }
@@ -206,12 +212,30 @@ test('MSFO endpoint: needs the managed key, validates input, and enforces a dail
   const env = {...f.env, OPENAI_API_KEY: 'sk-test', OPENAI_MODEL: 'm', AI_MAX_DAILY_MSFO: '2'};
   assert.equal((await call({mode: 'nope', source: 'a'}, env)).status, 400);
   const original = globalThis.fetch;
-  globalThis.fetch = async () => new Response(JSON.stringify({status: 'completed', output: [{content: [{type: 'output_text', text: JSON.stringify({title: 't', summary: 's', documentHtml: '<p>x</p>', changes: [], limitations: []})}]}]}));
+  const sentBodies = [];
+  const done = {status: 'completed', output: [{content: [{type: 'output_text', text: JSON.stringify({title: 't', summary: 's', documentHtml: '<p>x</p>', changes: [], limitations: []})}]}]};
+  globalThis.fetch = async (url, init = {}) => {
+    if (init.method === 'POST') { sentBodies.push(JSON.parse(init.body)); return new Response(JSON.stringify({id: 'resp_job12345', status: 'queued'})); }
+    if (init.method === 'DELETE') return new Response('{}');
+    return new Response(JSON.stringify(done));
+  };
+  const poll = (id, token = f.token1) => f.worker.fetch(new Request(`https://app.hisobkor.uz/api/msfo/jobs/${id}`, {headers: {Cookie: `__Host-mezon_session=${token}`, 'X-Mezon-Request': '1'}}), env, {waitUntil() {}});
   try {
-    const ok = await call({mode: 'text', source: '<p>a</p>'}, env);
-    assert.equal(ok.status, 200);
-    assert.equal((await ok.json()).result.documentHtml, '<p>x</p>');
-    assert.equal((await call({mode: 'text', source: '<p>a</p>'}, env)).status, 200);
+    const started = await call({mode: 'text', source: '<p>a</p>'}, env);
+    assert.equal(started.status, 200);
+    assert.equal((await started.json()).job.id, 'resp_job12345');
+    if (f.token2) assert.equal((await poll('resp_job12345', f.token2)).status, 404, 'another account cannot read the job');
+    assert.equal((await poll('resp_other123')).status, 404);
+    const finished = await (await poll('resp_job12345')).json();
+    assert.equal(finished.status, 'complete');
+    assert.equal(finished.result.documentHtml, '<p>x</p>');
+    // A stored PDF is read from R2 by key (scoped to the caller's workspace); missing or non-PDF files are refused.
+    f.db.files.push({id: 'pdf-v1', account_id: 'account-1', workspace_id: 'workspace-1', logical_id: 'pdf-1', r2_key: 'tenant-1/pdf', content_type: 'application/pdf', size: 12, sha256: 'p', is_current: 1});
+    await f.env.DOCUMENTS.put('tenant-1/pdf', new TextEncoder().encode('%PDF-1.7 abc'));
+    assert.equal((await call({mode: 'statements', file: {name: 'b.pdf', fileKey: 'shared-name'}}, env)).status, 400, 'stored bytes that are not a PDF');
+    assert.equal((await call({mode: 'statements', file: {name: 'b.pdf', fileKey: 'missing-key'}}, env)).status, 404);
+    assert.equal((await call({mode: 'statements', file: {name: 'b.pdf', fileKey: 'pdf-1'}}, env)).status, 200);
+    assert.match(sentBodies.at(-1).input[0].content[1].file_data, /^data:application\/pdf;base64,JVBERi0xLjcgYWJj$/);
     assert.equal((await call({mode: 'text', source: '<p>a</p>'}, env)).status, 429);
   } finally { globalThis.fetch = original; }
 });

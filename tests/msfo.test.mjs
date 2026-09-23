@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {unzipSync, strFromU8} from 'fflate';
-import {validateMsfoRequest, buildMsfoRequest, parseMsfoResponse, runMsfo, MAX_SOURCE_CHARS} from '../msfo-service.mjs';
+import {validateMsfoRequest, buildMsfoRequest, parseMsfoResponse, runMsfo, startMsfo, pollMsfo, MAX_SOURCE_CHARS} from '../msfo-service.mjs';
 import {blocksToDocx, docxToBlocks, blocksToHtml, parseXml} from '../src/msfo/docx.mjs';
 import {msfoCounts, countMarkers, newMsfoItem} from '../src/msfo/model.mjs';
 import {appRoute} from '../src/company-overview.mjs';
@@ -48,6 +48,37 @@ test('runMsfo sends the key only to OpenAI and maps API errors', async () => {
   assert.equal(seen.auth, 'Bearer sk-1');
   assert.equal(ok.model, 'm');
   await assert.rejects(runMsfo({mode: 'text', source: '<p>a</p>'}, {key: 'k', model: 'm', fetcher: async () => new Response('{}', {status: 429})}), /limiti/);
+});
+
+test('MSFO accepts a PDF source and sends it to the model as a file', () => {
+  const pdf = Buffer.from('%PDF-1.7\n1 0 obj\n').toString('base64');
+  const input = validateMsfoRequest({mode: 'statements', file: {name: 'balans.pdf', base64: pdf}});
+  assert.equal(input.file.name, 'balans.pdf');
+  const body = buildMsfoRequest(input, 'm');
+  const parts = body.input[0].content;
+  assert.equal(parts[1].type, 'input_file');
+  assert.match(parts[1].file_data, /^data:application\/pdf;base64,/);
+  assert.throws(() => validateMsfoRequest({mode: 'text', file: {name: 'a.docx', base64: pdf}}), /PDF/);
+  assert.throws(() => validateMsfoRequest({mode: 'text', file: {name: 'a.pdf', base64: Buffer.from('hello world!').toString('base64')}}), /PDF emas/);
+});
+
+test('MSFO conversion runs as a background job and deletes the stored response', async () => {
+  const calls = [];
+  const fetcher = async (url, init = {}) => {
+    calls.push([init.method || 'GET', url]);
+    if (init.method === 'POST') { const b = JSON.parse(init.body); assert.equal(b.background, true); assert.equal(b.store, true); return new Response(JSON.stringify({id: 'resp_abc12345', status: 'queued'})); }
+    if (init.method === 'DELETE') return new Response('{}');
+    return new Response(JSON.stringify(calls.filter(c => c[0] === 'GET').length === 1 ? {status: 'in_progress'} : completed(conversion)));
+  };
+  const job = await startMsfo({mode: 'text', source: '<p>a</p>'}, {key: 'k', model: 'm', fetcher});
+  assert.deepEqual(job, {id: 'resp_abc12345', status: 'processing'});
+  assert.deepEqual(await pollMsfo(job.id, {key: 'k', model: 'm', fetcher}), {status: 'processing'});
+  const done = await pollMsfo(job.id, {key: 'k', model: 'm', fetcher});
+  assert.equal(done.status, 'complete');
+  assert.equal(done.result.model, 'm');
+  assert.deepEqual(calls.at(-1), ['DELETE', 'https://api.openai.com/v1/responses/resp_abc12345']);
+  await assert.rejects(pollMsfo('../x', {key: 'k', model: 'm', fetcher}), /yaroqsiz/);
+  await assert.rejects(startMsfo({action: 'rewrite', mode: 'text', selection: 'a', instruction: 'b'}, {key: 'k', model: 'm', fetcher}), /faqat/);
 });
 
 test('Word export round-trips headings, formatting, lists and merged table cells', () => {
