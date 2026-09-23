@@ -1,5 +1,5 @@
 import React from 'react';
-import {ArrowRight} from './icons';
+import {ArrowRight,List,X} from './icons';
 
 /**
  * Native <details> so the panel needs no JavaScript to open, plus a small enhancement
@@ -33,17 +33,20 @@ export function MobileMenu({links,app}:{links:readonly (readonly [string,string]
     };
   },[mounted]);
 
-  if(!mounted)return <span className="menu-slot" aria-hidden="true"/>;
-  return <details className="mobile-menu" ref={ref}>
-    <summary aria-label="Menyu" className="menu-button"><span className="menu-bars"><span/><span/></span></summary>
-    <div className="menu-panel">
-      <nav aria-label="Mobil navigatsiya">
-        {links.map(([href,label],i)=>
-          <a href={href} key={href} style={{['--i' as string]:i}} onClick={()=>{if(ref.current)ref.current.open=false}}>{label}</a>)}
+  if(!mounted)return <span className="size-11 lg:hidden" aria-hidden="true"/>;
+  return <details className="group lg:hidden" ref={ref}>
+    <summary aria-label="Menyu" className="grid size-11 cursor-pointer list-none place-items-center rounded-lg text-zinc-950 hover:bg-zinc-950/5 [&::-webkit-details-marker]:hidden">
+      <List size={24} className="shrink-0 group-open:hidden" aria-hidden="true"/>
+      <X size={24} className="shrink-0 group-not-open:hidden" aria-hidden="true"/>
+    </summary>
+    <div className="menu-panel fixed inset-x-0 top-[calc(--spacing(16)+env(safe-area-inset-top))] bottom-0 flex flex-col overflow-y-auto bg-white px-6 pt-4 pb-[max(--spacing(6),env(safe-area-inset-bottom))]">
+      <nav aria-label="Mobil navigatsiya" className="flex flex-col">
+        {links.map(([href,label])=>
+          <a href={href} key={href} className="border-b border-zinc-950/10 py-4 text-xl font-semibold tracking-tight text-zinc-950" onClick={()=>{if(ref.current)ref.current.open=false}}>{label}</a>)}
       </nav>
-      <div className="menu-foot">
-        <a className="menu-cta" href={`${app}/#register`}>Hisob yaratish<ArrowRight size={18} weight="bold"/></a>
-        <a className="menu-login" href={app}>Kirish</a>
+      <div className="mt-auto flex flex-col gap-3 pt-8">
+        <a href={`${app}/#register`} className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary py-3 pr-3 pl-4 text-base font-semibold text-white">Hisob yaratish<ArrowRight size={16} weight="bold" className="shrink-0" aria-hidden="true"/></a>
+        <a href={app} className="inline-flex items-center justify-center rounded-lg py-3 text-base font-semibold text-zinc-950 ring-1 ring-zinc-950/10">Kirish</a>
       </div>
     </div>
   </details>;
