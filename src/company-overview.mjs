@@ -32,9 +32,9 @@ export function periodSummary(docs,company,period,closed=[]){
  const review=items.filter(d=>d.status==='review_required').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
  const waiting=items.filter(d=>['missing','correction_requested'].includes(d.status));
  if(closed.includes(`${company.id}:${period}`))
-  return {state:'closed',tone:'success',title:'Davr yopilgan',text:'Yangi hujjat yoki talab qo‘shilsa, davr o‘zi qayta ochiladi.',progress,action:{kind:'documents',label:'Hujjatlarni ko‘rish'}};
+  return {state:'closed',tone:'success',title:'Davr yopilgan',text:'Yangi hujjat qo‘shilsa, davr o‘zi qayta ochiladi.',progress,action:{kind:'documents',label:'Hujjatlarni ko‘rish'}};
  if(!items.length)
-  return {state:'empty',tone:'neutral',title:'Bu davrda hali hujjat yo‘q',text:'Birinchi faylni yuklang yoki mijozdan hujjat so‘rang.',progress,action:{kind:'upload',label:'Hujjat yuklash'}};
+  return {state:'empty',tone:'neutral',title:'Bu davrda hali hujjat yo‘q',text:'Birinchi faylni yuklang.',progress,action:{kind:'upload',label:'Hujjat yuklash'}};
  if(review.length)
   return {state:'review',tone:'warning',title:`${review.length} ta hujjat qaroringizni kutmoqda`,text:'Hujjatni oching, tekshiring va qabul qiling yoki tuzatishga qaytaring.',progress,
    action:{kind:'review',label:'Tekshirishni boshlash',documentId:review[0].id}};
