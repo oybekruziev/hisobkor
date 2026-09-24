@@ -163,7 +163,7 @@ test('apex static allowlist serves landing assets and rejects unrelated files', 
   response = await f.worker.fetch(new Request('https://hisobkor.uz/landing.js'), f.env, f.ctx);
   assert.equal(response.status, 200);
   assert.equal(await response.text(), '/landing.js');
-  for (const name of ['overview', 'documents', 'msfo']) {
+  for (const name of ['overview', 'documents', 'msfo', 'home']) {
     const pathname = `/shots/${name}.webp`;
     const image = await readFile(new URL(`../public${pathname}`, import.meta.url));
     assert.equal(image.subarray(0, 4).toString(), 'RIFF');
@@ -176,6 +176,15 @@ test('apex static allowlist serves landing assets and rejects unrelated files', 
     response = await f.worker.fetch(new Request(`https://${host}/fonts/Onest-latin.woff2`), f.env, f.ctx);
     assert.equal(response.status, 200);
     assert.equal(await response.text(), '/fonts/Onest-latin.woff2');
+  }
+  for (const host of ['hisobkor.uz', 'app.hisobkor.uz', 'admin.hisobkor.uz']) {
+    response = await f.worker.fetch(new Request(`https://${host}/brand/character-welcome-320.webp`), f.env, f.ctx);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), '/brand/character-welcome-320.webp');
+  }
+  for (const bad of ['/brand/../wrangler.jsonc', '/brand/x.js', '/brand/sub/x.webp', '/brand/X.webp']) {
+    response = await f.worker.fetch(new Request(`https://app.hisobkor.uz${bad}`), f.env, f.ctx);
+    assert.equal(response.status, 404, bad);
   }
   response = await f.worker.fetch(new Request('https://hisobkor.uz/app.js'), f.env, f.ctx);
   assert.equal(response.status, 404);

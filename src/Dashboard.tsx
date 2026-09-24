@@ -11,6 +11,7 @@ import {dashboardRows, waitingForReview, workspaceHeadline} from './dashboard-mo
 import {companyStates} from './domain.mjs';
 import {formatPeriod, documentName, formatDate, greeting, initialsOf} from './format.mjs';
 import {cn} from './lib/utils';
+import {Character} from './components/Character';
 
 /** A company's period state uses the same colour and icon vocabulary as a document status. */
 const stateStatus: Record<string, string> = {ready: 'accepted', review: 'review_required', waiting: 'missing', empty: 'missing'};
@@ -23,7 +24,7 @@ export function Ring({value, size = 44, className}: {value: number | null; size?
     <span className={cn('relative inline-flex shrink-0 items-center justify-center', className)} style={{width: size, height: size}} aria-hidden="true">
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="4" className="stroke-muted"/>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="4" strokeLinecap="round" className={v === 100 ? 'stroke-emerald-500' : 'stroke-primary'} strokeDasharray={c} strokeDashoffset={c - (c * v) / 100}/>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="4" strokeLinecap="round" className={v === 100 ? 'stroke-success' : 'stroke-primary'} strokeDasharray={c} strokeDashoffset={c - (c * v) / 100}/>
       </svg>
       <span className="absolute text-[0.6875rem] font-semibold tabular-nums">{value == null ? '—' : `${v}%`}</span>
     </span>
@@ -36,7 +37,7 @@ function CompanyTile({row, onOpen}: any) {
   return (
     <li>
       <button type="button" onClick={() => onOpen(company.id)} aria-label={`${company.name}: ${companyStates[state]}. Kompaniyani ochish`}
-        className="group/tile flex h-full w-full flex-col gap-4 rounded-2xl border border-border/80 bg-card p-4 text-left shadow-[0_1px_2px_rgb(20_30_25/0.04)] outline-none transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_12px_28px_-16px_rgb(20_60_45/0.35)] focus-visible:ring-[3px] focus-visible:ring-ring/50">
+        className="group/tile flex h-full w-full flex-col gap-4 rounded-2xl border border-border/80 bg-card p-4 text-left shadow-[0_1px_2px_rgb(21_35_59/0.04)] outline-none transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_12px_28px_-16px_rgb(23_70_200/0.35)] focus-visible:ring-[3px] focus-visible:ring-ring/50">
         <span className="flex items-start gap-3">
           <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-sm font-semibold text-secondary-foreground">{initialsOf(company.name)}</span>
           <span className="flex min-w-0 flex-1 flex-col">
@@ -110,7 +111,7 @@ export function WorkspaceHome({companies, docs, period, profile, onPeriod, onOpe
       {banner}
 
       {mine.length > 0 && (
-        <section aria-labelledby="focus-title" className="relative isolate overflow-hidden rounded-3xl bg-ink p-6 text-ink-foreground shadow-[0_20px_40px_-24px_rgb(10_40_30/0.55)] sm:p-8">
+        <section aria-labelledby="focus-title" className="relative isolate overflow-hidden rounded-3xl bg-ink p-6 text-ink-foreground shadow-[0_20px_40px_-24px_rgb(21_35_59/0.55)] sm:p-8">
           <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(rgb(255_255_255/0.07)_1px,transparent_1px)] [mask-image:linear-gradient(to_left,black,transparent_70%)] bg-[size:18px_18px]"/>
           <span aria-hidden="true" className="pointer-events-none absolute -top-28 -right-20 -z-10 size-80 rounded-full bg-ink-primary/20 blur-3xl"/>
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -126,18 +127,18 @@ export function WorkspaceHome({companies, docs, period, profile, onPeriod, onOpe
               )}
               <p className="text-sm text-pretty text-white/65">{headline.text}</p>
             </div>
-            {waiting.length > 0 && <Button size="lg" className="h-11 rounded-xl bg-ink-primary px-5 font-semibold text-ink-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.35),0_8px_20px_-8px_rgb(120_230_180/0.5)] hover:bg-ink-primary/90 max-lg:self-start" onClick={() => onReview(waiting[0].doc)}>Tekshirishni boshlash<ArrowRight/></Button>}
+            {waiting.length > 0 && <div className="flex items-end gap-5 max-lg:self-start"><Character pose="review" width={112} className="-mb-2 max-lg:hidden"/><Button size="lg" className="h-11 rounded-xl bg-ink-primary px-5 font-semibold text-ink-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.35),0_8px_20px_-8px_rgb(54_185_246/0.45)] hover:bg-ink-primary/90 max-lg:self-start" onClick={() => onReview(waiting[0].doc)}>Tekshirishni boshlash<ArrowRight/></Button></div>}
           </div>
           <div className="mt-7 border-t border-white/10 pt-5"><Breakdown totals={totals}/></div>
         </section>
       )}
 
-      <div className="grid min-w-0 gap-5 lg:grid-cols-5 lg:gap-7">
+      {mine.length > 0 && <div className="grid min-w-0 gap-5 lg:grid-cols-5 lg:gap-7">
         <Card className="gap-4 lg:col-span-3 lg:self-start">
           <CardHeader>
             <CardTitle className="text-[1.0625rem] tracking-tight">Tekshiruv navbati</CardTitle>
             <CardDescription>Eng yangi hujjatlar yuqorida</CardDescription>
-            {waiting.length > 0 && <CardAction><span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-800 tabular-nums">{waiting.length}</span></CardAction>}
+            {waiting.length > 0 && <CardAction><span className="rounded-full bg-warning/12 px-2 py-0.5 text-sm font-semibold text-warning tabular-nums">{waiting.length}</span></CardAction>}
           </CardHeader>
           <CardContent>
             {waiting.length ? (
@@ -159,7 +160,7 @@ export function WorkspaceHome({companies, docs, period, profile, onPeriod, onOpe
             ) : (
               <Empty className="py-8">
                 <EmptyHeader>
-                  <EmptyMedia variant="icon"><CheckCheck aria-hidden="true"/></EmptyMedia>
+                  {mine.length ? <Character pose="complete" width={110} className="mb-1"/> : <EmptyMedia variant="icon"><CheckCheck aria-hidden="true"/></EmptyMedia>}
                   <EmptyTitle>Navbat bo‘sh</EmptyTitle>
                   <EmptyDescription>{mine.length ? 'Bu davrda tekshirishni kutayotgan hujjat yo‘q. Yangi hujjat yuklasangiz, u shu yerda paydo bo‘ladi.' : 'Kompaniya qo‘shsangiz, tekshirishni kutayotgan hujjatlar shu yerda ko‘rinadi.'}</EmptyDescription>
                 </EmptyHeader>
@@ -193,7 +194,7 @@ export function WorkspaceHome({companies, docs, period, profile, onPeriod, onOpe
             </Empty></Card>
           )}
         </section>
-      </div>
+      </div>}
     </div>
   );
 }

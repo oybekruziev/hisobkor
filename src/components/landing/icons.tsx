@@ -17,3 +17,8 @@ export {MicrosoftWordLogo} from '@phosphor-icons/react/dist/ssr/MicrosoftWordLog
 export {Table} from '@phosphor-icons/react/dist/ssr/Table';
 export {MagicWand} from '@phosphor-icons/react/dist/ssr/MagicWand';
 export {FileArrowDown} from '@phosphor-icons/react/dist/ssr/FileArrowDown';
+export {ShieldCheck} from '@phosphor-icons/react/dist/ssr/ShieldCheck';
+export {ClockCounterClockwise} from '@phosphor-icons/react/dist/ssr/ClockCounterClockwise';
+export {Eye} from '@phosphor-icons/react/dist/ssr/Eye';
+export {UsersThree} from '@phosphor-icons/react/dist/ssr/UsersThree';
+export {Stack} from '@phosphor-icons/react/dist/ssr/Stack';

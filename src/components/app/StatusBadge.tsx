@@ -14,11 +14,11 @@ const icons = {
 
 /** Tone → colour. The only place status colours are chosen. */
 export const toneClasses: Record<string, string> = {
-  success: 'border-transparent bg-emerald-100/80 text-emerald-800',
-  warning: 'border-transparent bg-amber-100 text-amber-900',
-  issue: 'border-transparent bg-red-100 text-red-800',
-  conflict: 'border-transparent bg-red-100 text-red-800',
-  info: 'border-transparent bg-sky-100 text-sky-800',
+  success: 'border-transparent bg-success/10 text-success',
+  warning: 'border-transparent bg-warning/12 text-warning-ink',
+  issue: 'border-transparent bg-danger/10 text-danger',
+  conflict: 'border-transparent bg-danger/10 text-danger',
+  info: 'border-transparent bg-accent text-accent-foreground',
   neutral: 'border-border bg-background text-muted-foreground',
 };
 

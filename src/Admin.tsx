@@ -118,7 +118,7 @@ export function AdminPage({currentUsername}:{currentUsername?:string}){
     </TableRow></TableHeader>
     <TableBody>{visible.map(u=>{const me=u.username.toLowerCase()===String(currentUsername||'').toLowerCase();return <TableRow key={u.id} className={cn(u.disabled&&'text-muted-foreground')}>
      <TableCell><div className="grid leading-tight"><span className="flex items-center gap-1.5 font-medium">{u.username}{u.admin&&<Badge variant="outline" className="text-primary">Admin</Badge>}{me&&<span className="text-xs text-muted-foreground">(siz)</span>}</span>{(u.fullName||u.phone)&&<span className="text-xs text-muted-foreground">{[u.fullName,u.phone].filter(Boolean).join(' · ')}</span>}</div></TableCell>
-     <TableCell>{u.disabled?<Badge variant="destructive">Bloklangan</Badge>:u.activeSessions>0?<Badge variant="secondary" className="text-emerald-700">Onlayn</Badge>:<Badge variant="outline">Faol</Badge>}</TableCell>
+     <TableCell>{u.disabled?<Badge variant="destructive">Bloklangan</Badge>:u.activeSessions>0?<Badge variant="secondary" className="text-success">Onlayn</Badge>:<Badge variant="outline">Faol</Badge>}</TableCell>
      <TableCell className="tabular-nums whitespace-nowrap">{formatDate(new Date(u.createdAt).toISOString())}</TableCell>
      <TableCell className="whitespace-nowrap">{relativeTime(activeAt(u),now)}</TableCell>
      <TableCell className="text-right tabular-nums">{u.companies}</TableCell><TableCell className="text-right tabular-nums">{u.documents}</TableCell><TableCell className="text-right tabular-nums">{u.msfo}</TableCell><TableCell className="text-right tabular-nums">{u.aiJobs}</TableCell>

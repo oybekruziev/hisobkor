@@ -92,9 +92,9 @@ const kinds:any={invoice:'Schyot-faktura',contract:'Shartnoma',bank_statement:'B
 
 /** One vocabulary for AI findings: red = values disagree, amber = check by hand, blue = context. */
 const tones:any={
- conflict:{label:'Ziddiyat',icon:'alert',box:'border-red-200 bg-red-50/60',bar:'bg-red-500',text:'text-red-700'},
- warning:{label:'Tekshiring',icon:'help',box:'border-amber-200 bg-amber-50/60',bar:'bg-amber-500',text:'text-amber-800'},
- info:{label:'Ma’lumot',icon:'check',box:'border-border bg-muted/40',bar:'bg-blue-500',text:'text-blue-700'},
+ conflict:{label:'Ziddiyat',icon:'alert',box:'border-danger/25 bg-danger/10/60',bar:'bg-danger/100',text:'text-danger'},
+ warning:{label:'Tekshiring',icon:'help',box:'border-warning/40 bg-warning/10/60',bar:'bg-warning/100',text:'text-warning'},
+ info:{label:'Ma’lumot',icon:'check',box:'border-border bg-muted/40',bar:'bg-accent0',text:'text-accent-foreground'},
 };
 
 export function AIBadge({doc}:any){
@@ -162,7 +162,7 @@ export function AIReview({doc,docs,company,ai,onRelated}:any){
    {issues.length>0?<div className="flex flex-col gap-2">
     <h4 className="text-sm font-medium">Hujjat ichidagi izohlar</h4>
     <ul role="list" className="flex flex-col gap-2">{issues.map((issue:any,i:number)=><Finding key={i} {...issue}/>)}</ul>
-   </div>:<Alert className={toneClasses.success}><Icon name="check"/><AlertTitle>Alohida izoh topilmadi</AlertTitle><AlertDescription className="text-emerald-700/90">O‘qilgan qismda ziddiyat yoki yetishmayotgan rekvizit ko‘rinmadi.</AlertDescription></Alert>}
+   </div>:<Alert className={toneClasses.success}><Icon name="check"/><AlertTitle>Alohida izoh topilmadi</AlertTitle><AlertDescription className="text-success">O‘qilgan qismda ziddiyat yoki yetishmayotgan rekvizit ko‘rinmadi.</AlertDescription></Alert>}
 
    {notes.length>0&&<div className="flex flex-col gap-2">
     <h4 className="text-sm font-medium">Kompaniya va shartnoma bilan solishtirish</h4>
@@ -183,7 +183,7 @@ export function AIReview({doc,docs,company,ai,onRelated}:any){
     <CollapsibleTrigger asChild><Button variant="ghost" className="group/trigger w-full justify-between rounded-lg px-3">Tahlil chegaralari<span className="ml-auto text-muted-foreground tabular-nums">{r.limitations.length}</span><Icon name="down" className="text-muted-foreground transition-transform group-data-[state=open]/trigger:rotate-180"/></Button></CollapsibleTrigger>
     <CollapsibleContent className="border-t px-3 py-3"><ul className="flex list-disc flex-col gap-1.5 pl-5 text-sm text-muted-foreground">{r.limitations.map((x:string,i:number)=><li key={i} className="[overflow-wrap:anywhere]">{x}</li>)}</ul></CollapsibleContent>
    </Collapsible>}
-  </>:<Alert role="status" className={doc.ai?.status==='error'?toneClasses.issue:undefined}>{pending?<Spinner/>:<Icon name={doc.ai?.status==='error'?'alert':'spark'}/>}<AlertDescription className={doc.ai?.status==='error'?'text-red-700':undefined}>{doc.ai?.status==='error'?doc.ai.error:pending?(ai.connection.background?'Tekshiruv fonda davom etmoqda. Bu oynani yopishingiz mumkin.':'Tekshiruv davom etmoqda. Jarayon tugaguncha sahifani ochiq qoldiring.'):'Hujjat hali avtomatik tekshirilmagan.'}</AlertDescription></Alert>}
+  </>:<Alert role="status" className={doc.ai?.status==='error'?toneClasses.issue:undefined}>{pending?<Spinner/>:<Icon name={doc.ai?.status==='error'?'alert':'spark'}/>}<AlertDescription className={doc.ai?.status==='error'?'text-danger':undefined}>{doc.ai?.status==='error'?doc.ai.error:pending?(ai.connection.background?'Tekshiruv fonda davom etmoqda. Bu oynani yopishingiz mumkin.':'Tekshiruv davom etmoqda. Jarayon tugaguncha sahifani ochiq qoldiring.'):'Hujjat hali avtomatik tekshirilmagan.'}</AlertDescription></Alert>}
 
   <div className="flex flex-col gap-2">
    {ai.connection.connected&&!ai.consent?<AiConsent checked={false} onCheckedChange={ai.setConsent}/>:<Button variant="outline" className="w-full" disabled={!ai.ready||pending||ai.running||!ai.connection.connected} onClick={()=>ai.check([doc],!!r||doc.ai?.status==='error')}>{pending?<Spinner/>:<Icon name="spark"/>}{pending?'Tekshirilmoqda…':r?'Qayta tekshirish':ai.connection.connected?'Tekshirish':'Tekshiruv mavjud emas'}</Button>}

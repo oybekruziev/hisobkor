@@ -8,7 +8,9 @@ const SESSION_SECONDS = 12 * 60 * 60;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const STATIC_APP = new Set(['/', '/index.html', '/app.js', '/style.css', '/favicon.svg', '/brand-h.png', '/fonts/Onest-latin.woff2', '/fonts/Onest-latin-ext.woff2', '/fonts/Onest-cyrillic.woff2']);
 const STATIC_ADMIN = new Map([['/', '/admin.html'], ['/admin.js', '/admin.js'], ['/style.css', '/style.css'], ['/favicon.svg', '/favicon.svg'], ['/brand-h.png', '/brand-h.png'], ['/fonts/Onest-latin.woff2', '/fonts/Onest-latin.woff2'], ['/fonts/Onest-latin-ext.woff2', '/fonts/Onest-latin-ext.woff2'], ['/fonts/Onest-cyrillic.woff2', '/fonts/Onest-cyrillic.woff2']]);
-const STATIC_LANDING = new Map([['/', '/landing.html'], ['/landing.html', '/landing.html'], ['/landing.css', '/landing.css'], ['/landing.js', '/landing.js'], ['/favicon.svg', '/favicon.svg'], ['/brand-h.png', '/brand-h.png'], ['/og-image.png', '/og-image.png'], ['/shots/overview.webp', '/shots/overview.webp'], ['/shots/documents.webp', '/shots/documents.webp'], ['/shots/msfo.webp', '/shots/msfo.webp'], ['/sitemap.xml', '/sitemap.xml'], ['/fonts/Onest-latin.woff2', '/fonts/Onest-latin.woff2'], ['/fonts/Onest-latin-ext.woff2', '/fonts/Onest-latin-ext.woff2'], ['/fonts/Onest-cyrillic.woff2', '/fonts/Onest-cyrillic.woff2']]);
+const STATIC_LANDING = new Map([['/', '/landing.html'], ['/landing.html', '/landing.html'], ['/landing.css', '/landing.css'], ['/landing.js', '/landing.js'], ['/favicon.svg', '/favicon.svg'], ['/brand-h.png', '/brand-h.png'], ['/og-image.png', '/og-image.png'], ['/shots/overview.webp', '/shots/overview.webp'], ['/shots/documents.webp', '/shots/documents.webp'], ['/shots/msfo.webp', '/shots/msfo.webp'], ['/shots/home.webp', '/shots/home.webp'], ['/sitemap.xml', '/sitemap.xml'], ['/fonts/Onest-latin.woff2', '/fonts/Onest-latin.woff2'], ['/fonts/Onest-latin-ext.woff2', '/fonts/Onest-latin-ext.woff2'], ['/fonts/Onest-cyrillic.woff2', '/fonts/Onest-cyrillic.woff2']]);
+/** Versioned brand assets (character poses, icons): one flat folder, safe file names only. */
+const BRAND_ASSET = /^\/brand\/[a-z0-9-]+\.(?:webp|png|svg)$/;
 const securityHeaders = {
   'Content-Security-Policy': "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; frame-src 'self' blob:; connect-src 'self' https://cloudflareinsights.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
@@ -395,8 +397,8 @@ async function serveAsset(request, env, pathname) {
 async function adminHost(request, env, ctx, url) {
   if (!url.pathname.startsWith('/api/')) {
     if (!['GET', 'HEAD'].includes(request.method)) return fail(405, 'Usul qo‘llab-quvvatlanmaydi.');
-    if (!STATIC_ADMIN.has(url.pathname)) return fail(404, 'Sahifa topilmadi.');
-    const response = await serveAsset(request, env, STATIC_ADMIN.get(url.pathname));
+    if (!STATIC_ADMIN.has(url.pathname) && !BRAND_ASSET.test(url.pathname)) return fail(404, 'Sahifa topilmadi.');
+    const response = await serveAsset(request, env, STATIC_ADMIN.get(url.pathname) || url.pathname);
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
     return response;
   }
@@ -432,7 +434,7 @@ export function createWorker() {
           return Response.redirect(`https://${landingHost}${url.pathname}${url.search}`, 308);
         }
         if (host === landingHost && env.ENVIRONMENT !== 'local') {
-          if (['GET', 'HEAD'].includes(request.method) && STATIC_LANDING.has(url.pathname)) return await serveAsset(request, env, STATIC_LANDING.get(url.pathname));
+          if (['GET', 'HEAD'].includes(request.method) && (STATIC_LANDING.has(url.pathname) || BRAND_ASSET.test(url.pathname))) return await serveAsset(request, env, STATIC_LANDING.get(url.pathname) || url.pathname);
           return fail(404, 'Sahifa topilmadi.');
         }
         if (!allowedOrigin(request, env)) return fail(403, 'Ruxsat berilmagan manba.');
@@ -440,7 +442,7 @@ export function createWorker() {
         if (url.pathname === '/healthz') return request.method === 'GET' ? json({ok: true}) : fail(405, 'Usul qo‘llab-quvvatlanmaydi.');
         if (!url.pathname.startsWith('/api/')) {
           if (request.method !== 'GET' && request.method !== 'HEAD') return fail(405, 'Usul qo‘llab-quvvatlanmaydi.');
-          if (!STATIC_APP.has(url.pathname)) return fail(404, 'Sahifa topilmadi.');
+          if (!STATIC_APP.has(url.pathname) && !BRAND_ASSET.test(url.pathname)) return fail(404, 'Sahifa topilmadi.');
           return await serveAsset(request, env, url.pathname === '/' ? '/index.html' : url.pathname);
         }
         if (request.method === 'GET' && url.pathname === '/api/session') {

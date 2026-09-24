@@ -2,11 +2,12 @@
 @import "./theme.css";
 @source "./Landing.tsx";
 @source "./components/landing/*.tsx";
+@source "./components/Character.tsx";
 
 /* The page is built with Tailwind utilities (see Landing.tsx). Only what utilities
    cannot express lives here: document-level behaviour and the scroll reveal. */
 :root{font-size:16px;font-synthesis:none;color-scheme:light}
-html{scroll-behavior:smooth;background:#fff}
+html{scroll-behavior:smooth;background:var(--background)}
 body{margin:0;overflow-x:hidden}
 body.menu-open{overflow:hidden}
 a,button,summary{touch-action:manipulation}

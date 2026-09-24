@@ -22,7 +22,7 @@ export function CompanyOverview({company, docs, period, closed, onNavigate, onOp
   };
 
   return <div className="flex min-w-0 flex-col gap-4 lg:gap-6">
-    <section aria-labelledby="period-title" className="grid overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_1px_2px_rgb(20_30_25/0.04),0_8px_24px_-12px_rgb(20_30_25/0.10)] lg:grid-cols-[1.4fr_1fr]">
+    <section aria-labelledby="period-title" className="grid overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_1px_2px_rgb(21_35_59/0.04),0_8px_24px_-12px_rgb(21_35_59/0.10)] lg:grid-cols-[1.4fr_1fr]">
       <div className="flex flex-col gap-5 p-5 sm:p-7">
         <div className="flex items-start gap-4">
           <Ring value={summary.progress.percent} size={64}/>
@@ -36,9 +36,9 @@ export function CompanyOverview({company, docs, period, closed, onNavigate, onOp
       </div>
       <ul role="list" className="flex flex-col divide-y border-t bg-muted/40 lg:border-t-0 lg:border-l">
         {[
-          {key: 'review_required', label: 'Tekshirish kerak', hint: 'Qaroringizni kutmoqda', value: stats.review, icon: ClipboardCheck, tone: 'bg-amber-100 text-amber-800'},
+          {key: 'review_required', label: 'Tekshirish kerak', hint: 'Qaroringizni kutmoqda', value: stats.review, icon: ClipboardCheck, tone: 'bg-warning/12 text-warning-ink'},
           {key: 'missing', label: 'Kutilmoqda', hint: 'Fayl yoki tuzatish kerak', value: stats.missing, icon: Clock, tone: 'bg-muted text-muted-foreground border'},
-          {key: 'accepted', label: 'Qabul qilingan', hint: 'Siz tasdiqlagan', value: stats.accepted, icon: CircleCheck, tone: 'bg-emerald-100 text-emerald-800'},
+          {key: 'accepted', label: 'Qabul qilingan', hint: 'Siz tasdiqlagan', value: stats.accepted, icon: CircleCheck, tone: 'bg-success/10 text-success'},
         ].map(item => (
           <li key={item.key} className="flex-1">
             <button type="button" onClick={() => onFilter(item.key)} aria-label={`${item.label}: ${item.value} ta hujjat. Ro‘yxatni ochish`}

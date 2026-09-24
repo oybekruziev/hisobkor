@@ -10,7 +10,7 @@ export function InitialsTile({name, size = 'md', className}: {name: string; size
 }
 
 /** File-type chip: PDF / XLS / CSV / IMG, so a list scans by shape. */
-const kindTones: Record<string, string> = {PDF: 'bg-rose-50 text-rose-700 ring-rose-200', XLS: 'bg-emerald-50 text-emerald-700 ring-emerald-200', CSV: 'bg-teal-50 text-teal-700 ring-teal-200', IMG: 'bg-sky-50 text-sky-700 ring-sky-200'};
+const kindTones: Record<string, string> = {PDF: 'bg-danger/10 text-danger ring-danger/25', XLS: 'bg-success/10 text-success ring-success/25', CSV: 'bg-success/10 text-success ring-success/25', IMG: 'bg-accent text-accent-foreground ring-primary/20'};
 export function FileTile({fileName, label, className}: {fileName?: string; label?: string; className?: string}) {
   const kind = label || fileKind(fileName);
   return <span aria-hidden="true" className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg text-[0.625rem] font-bold tracking-wide ring-1 ring-inset', kindTones[kind] || 'bg-muted text-muted-foreground ring-border', className)}>{kind}</span>;
@@ -18,9 +18,9 @@ export function FileTile({fileName, label, className}: {fileName?: string; label
 
 const iconTones: Record<string, string> = {
   neutral: 'bg-muted text-muted-foreground',
-  success: 'bg-emerald-50 text-emerald-700',
-  warning: 'bg-amber-50 text-amber-700',
-  issue: 'bg-red-50 text-red-700',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning-ink',
+  issue: 'bg-danger/10 text-danger',
   accent: 'bg-primary/10 text-primary',
 };
 

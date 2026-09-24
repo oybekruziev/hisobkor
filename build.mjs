@@ -20,7 +20,7 @@ const version=createHash('sha256').update(await readFile('public/app.js')).updat
 const html=(await readFile('public/index.html','utf8')).replace(/(app\.js|style\.css)(?:\?v=[a-z0-9]+)?/g,`$1?v=${version}`);
 await writeFile('public/index.html',html);
 const adminVersion=createHash('sha256').update(await readFile('public/admin.js')).update(await readFile('public/style.css')).digest('hex').slice(0,12);
-await writeFile('public/admin.html',`<!doctype html><html lang="uz"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"><meta name="theme-color" content="#ffffff"><meta name="robots" content="noindex,nofollow"><title>Admin — Hisobkor.uz</title><link rel="icon" href="/brand-h.png" type="image/png"><link rel="stylesheet" href="/style.css?v=${adminVersion}"></head><body><noscript>Admin panel uchun JavaScriptni yoqing.</noscript><div id="root"></div><script type="module" src="/admin.js?v=${adminVersion}"></script></body></html>`);
+await writeFile('public/admin.html',`<!doctype html><html lang="uz"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"><meta name="theme-color" content="#F7F9FC"><meta name="robots" content="noindex,nofollow"><title>Admin — Hisobkor.uz</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/brand/apple-touch-icon.png"><link rel="stylesheet" href="/style.css?v=${adminVersion}"></head><body><noscript>Admin panel uchun JavaScriptni yoqing.</noscript><div id="root"></div><script type="module" src="/admin.js?v=${adminVersion}"></script></body></html>`);
 // Pre-render the public page so its content and links also work before hydration.
 await mkdir('node_modules/.cache/hisobkor',{recursive:true});
 const renderPath=resolve('node_modules/.cache/hisobkor/landing.mjs');
@@ -28,12 +28,12 @@ await build({...options,entryPoints:['src/Landing.tsx'],outfile:renderPath,platf
 const {Landing,questions}=await import(pathToFileURL(renderPath).href);
 const markup=renderToString(React.createElement(Landing));
 const site='https://hisobkor.uz';
-const pageTitle='Hisobkor.uz — hujjatlar tartibda, hisob nazoratda';
-const pageDescription='Buxgalterlar uchun kompaniyalar, hujjatlar va tekshiruvlar bir ish joyida. Hisobkor bilan hujjatni toping, tekshiring va qaror tarixini saqlang.';
+const pageTitle='Hisobkor — bir nechta kompaniya, bitta aniq ish jarayoni';
+const pageDescription='Buxgalterlar va moliya jamoalari uchun: kompaniya hujjatlarini yig‘ish, tekshirish va MHXS (MSFO) qoralamasini tayyorlash bitta joyda.';
 // JSON-LD is data, not executable script; "<" is escaped so content can never close the tag.
 const jsonLd=data=>`<script type="application/ld+json">${JSON.stringify(data).replace(/</g,'\\u003c')}</script>`;
 const structuredData=jsonLd({'@context':'https://schema.org','@graph':[
-{'@type':'Organization','@id':`${site}/#organization`,name:'Hisobkor.uz',url:`${site}/`,logo:`${site}/brand-h.png`},
+{'@type':'Organization','@id':`${site}/#organization`,name:'Hisobkor.uz',url:`${site}/`,logo:`${site}/brand/icon-512.png`},
 {'@type':'WebSite','@id':`${site}/#website`,url:`${site}/`,name:'Hisobkor.uz',description:pageDescription,inLanguage:'uz',publisher:{'@id':`${site}/#organization`}},
 {'@type':'SoftwareApplication',name:'Hisobkor',url:'https://app.hisobkor.uz/',applicationCategory:'BusinessApplication',operatingSystem:'Web',description:pageDescription,inLanguage:'uz'},
 {'@type':'FAQPage',mainEntity:questions.map(([name,text])=>({'@type':'Question',name,acceptedAnswer:{'@type':'Answer',text}}))}
@@ -42,6 +42,6 @@ const social=`<meta property="og:type" content="website"><meta property="og:site
 await writeFile('public/sitemap.xml',`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${site}/</loc></url></urlset>\n`);
 const landingVersion=createHash('sha256').update(await readFile('public/landing.js')).update(await readFile('public/landing.css')).digest('hex').slice(0,12);
 await writeFile('public/landing.html',`<!doctype html>
-<html lang="uz"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#ffffff"><title>${pageTitle}</title><meta name="description" content="${pageDescription}"><link rel="canonical" href="https://hisobkor.uz/"><link rel="icon" href="/brand-h.png" type="image/png">${social}${structuredData}<link rel="stylesheet" href="/landing.css?v=${landingVersion}"><script defer src="/landing.js?v=${landingVersion}"></script></head><body><div id="landing-root">${markup}</div></body></html>`);
+<html lang="uz"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#F7F9FC"><title>${pageTitle}</title><meta name="description" content="${pageDescription}"><link rel="canonical" href="https://hisobkor.uz/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">${social}${structuredData}<link rel="stylesheet" href="/landing.css?v=${landingVersion}"><script defer src="/landing.js?v=${landingVersion}"></script></head><body><div id="landing-root">${markup}</div></body></html>`);
 await unlink(renderPath);
 console.log(`Hisobkor.uz production build: ${version}; landing: ${landingVersion}`);

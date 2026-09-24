@@ -1,115 +1,101 @@
 import React from 'react';
 import {MobileMenu} from './components/landing/MobileMenu';
 import {useReveal} from './components/landing/motion';
-import {ArrowRight,CaretDown,FileText,CloudArrowUp,SealCheck,Check,X,Buildings,Sparkle,LockKey,DeviceMobile,CalendarCheck,Files,MicrosoftWordLogo,Table,MagicWand,FileArrowDown} from './components/landing/icons';
+import {Character, Wordmark} from './components/Character';
+import {ArrowRight,CaretDown,Check,Buildings,Sparkle,LockKey,Files,MicrosoftWordLogo,ShieldCheck,ClockCounterClockwise,Eye,UsersThree,Stack,CloudArrowUp,SealCheck} from './components/landing/icons';
 
 const app='https://app.hisobkor.uz';
 const register=`${app}/#register`;
-const links=[['#nega','Nega kerak'],['#imkoniyatlar','Imkoniyatlar'],['#msfo','MSFO'],['#tartib','Qanday ishlaydi'],['#savollar','Savol-javob']] as const;
+const links=[['#imkoniyatlar','Imkoniyatlar'],['#jarayon','Qanday ishlaydi'],['#xavfsizlik','Xavfsizlik'],['#savollar','Savollar']] as const;
 
-/* One container, one primary button and one link-style secondary for the whole page. */
-const container='mx-auto max-w-6xl px-6 lg:px-8';
-const primary='inline-flex items-center justify-center gap-2 rounded-lg bg-primary font-semibold text-white hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
-const secondary='inline-flex items-center gap-1.5 py-2.5 text-base font-semibold sm:text-sm';
+/* One container, one primary button and one quiet secondary for the whole page. */
+const container='mx-auto max-w-6xl px-5 sm:px-6 lg:px-8';
+const primary='inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.16),0_1px_2px_rgb(21_35_59/0.2),0_6px_16px_-6px_rgb(23_70_200/0.45)] transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+const secondary='inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 font-semibold text-foreground shadow-[0_1px_2px_rgb(21_35_59/0.05)] transition-colors hover:bg-muted';
 
 function Logo(){
-  return <a href="/" aria-label="Hisobkor.uz bosh sahifasi" className="flex shrink-0 items-center gap-2">
-    <img src="/brand-h.png" width="28" height="28" alt="" className="h-7 w-auto"/>
-    <span className="text-lg font-semibold tracking-tight text-zinc-950">hisobkor<span className="font-normal text-zinc-500">.uz</span></span>
-  </a>;
+  return <a href="/" aria-label="Hisobkor.uz bosh sahifasi" className="flex shrink-0 items-center"><Wordmark size={32}/></a>;
 }
 
 function StartCta({size='lg',children='Hisob yaratish'}:{size?:'sm'|'lg';children?:React.ReactNode}){
-  return <a href={register} className={`${primary} ${size==='lg'?'py-3 pr-3 pl-4 text-base sm:py-2.5 sm:pr-2.5 sm:pl-3.5 sm:text-sm':'py-1.5 pr-2 pl-3 text-sm'}`}>
+  return <a href={register} className={`${primary} ${size==='lg'?'px-5 text-base sm:text-[0.9375rem]':'min-h-10 px-3.5 text-sm'}`}>
     {children}<ArrowRight size={16} weight="bold" className="shrink-0" aria-hidden="true"/>
   </a>;
 }
 
-/** Real product screenshot in a concentric frame; on phones it shows the left part at a readable size. */
-function Screenshot({src,alt,eager=false}:{src:string;alt:string;eager?:boolean}){
-  return <div className="overflow-hidden rounded-(--frame-radius) bg-zinc-950/5 p-(--frame-padding) ring-1 ring-zinc-950/5 [--frame-padding:--spacing(2)] [--frame-radius:min(2.4vw,var(--radius-3xl))]">
-    <div className="overflow-hidden rounded-[calc(var(--frame-radius)-var(--frame-padding))] bg-white shadow-xl shadow-zinc-950/10">
-      <img src={src} alt={alt} width="1632" height="1032" loading={eager?'eager':'lazy'} fetchPriority={eager?'high':'auto'} decoding="async"
-        className="w-full max-w-none rounded-[calc(var(--frame-radius)-var(--frame-padding))] outline-1 -outline-offset-1 outline-black/10 max-sm:w-176"/>
+/** Real product screenshot in a quiet browser frame; on phones it shows the left part at a readable size. */
+function Screenshot({src,alt,eager=false,className=''}:{src:string;alt:string;eager?:boolean;className?:string}){
+  return <div className={`overflow-hidden rounded-2xl border border-border bg-card shadow-[0_1px_2px_rgb(21_35_59/0.05),0_24px_60px_-28px_rgb(21_35_59/0.35)] ${className}`}>
+    <div aria-hidden="true" className="flex h-8 items-center gap-1.5 border-b border-border bg-muted/70 px-3"><span className="size-2.5 rounded-full bg-border"/><span className="size-2.5 rounded-full bg-border"/><span className="size-2.5 rounded-full bg-border"/><span className="ml-3 h-4 w-40 rounded-md bg-card/80"/></div>
+    <div className="overflow-hidden">
+      <img src={src} alt={alt} width="1632" height="1032" loading={eager?'eager':'lazy'} fetchPriority={eager?'high':'auto'} decoding="async" className="block w-full max-w-none max-sm:w-176"/>
     </div>
   </div>;
 }
 
-function HeadingGroup({eyebrow,title,text}:{eyebrow:string;title:string;text?:string}){
-  return <div data-reveal>
-    <p className="text-base font-semibold text-primary sm:text-sm">{eyebrow}</p>
-    <h2 className="mt-3 max-w-[35ch] text-3xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-4xl">{title}</h2>
-    {text&&<p className="mt-5 max-w-[48ch] text-lg text-pretty text-zinc-600">{text}</p>}
+function HeadingGroup({eyebrow,title,text,center=false}:{eyebrow:string;title:string;text?:string;center?:boolean}){
+  return <div data-reveal className={center?'mx-auto text-center':''}>
+    <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">{eyebrow}</p>
+    <h2 className={`mt-3 max-w-[30ch] text-3xl font-semibold tracking-[-0.025em] text-balance text-foreground sm:text-[2.5rem] sm:leading-[1.1] ${center?'mx-auto':''}`}>{title}</h2>
+    {text&&<p className={`mt-5 max-w-[56ch] text-lg text-pretty text-muted-foreground ${center?'mx-auto':''}`}>{text}</p>}
   </div>;
 }
 
-const facts=[
-  [FileText,'PDF, JPG, PNG, XLSX, CSV'],
-  [CloudArrowUp,'Har bir fayl 25 MBgacha'],
-  [SealCheck,'Qarorni har doim buxgalter beradi'],
+/* The real chain in the app today. "Avtomatik" only where it is automatic. */
+const flow=[
+  [Buildings,'Kompaniya','Har bir mijoz tashkiloti alohida: hujjatlari, rekvizitlari va tarixi aralashmaydi.'],
+  [CloudArrowUp,'Hujjat','Oylik va doimiy hujjatlarni PDF, rasm, Excel yoki CSV ko‘rinishida yuklaysiz.'],
+  [Sparkle,'Tekshiruv','Rozilik bersangiz, AI faylni o‘qib, xato va ziddiyatlarni belgilaydi. Qarorni siz berasiz.'],
+  [Stack,'MHXS qoralamasi','PDF yoki Word hisobotni MHXS (MSFO / IFRS) tuzilishiga moslangan qoralamaga aylantirasiz.'],
+  [MicrosoftWordLogo,'Tasdiq va eksport','Redaktorda tekshirib, tuzatib, natijani Word (.docx) faylga yuklab olasiz.'],
 ] as const;
-
-const pains=[
-  'Fayllar Telegram, pochta va qog‘ozda tarqoq turadi.',
-  'Qaysi hujjat kelgani va qaysi biri hali tekshirilmagani ko‘rinmaydi.',
-  'Qaysi hujjatni kim va qachon qabul qilgani esdan chiqadi.',
-];
-
-const gains=[
-  'Har bir kompaniyaning hujjatlari o‘z joyida: oylik va doimiy hujjatlar alohida.',
-  'Ro‘yxatda holat ko‘rinib turadi: tekshirish kerak yoki qabul qilingan.',
-  'Har bir qaror saqlanadi: kim, qachon va nima qilgani.',
-];
 
 const benefits=[
-  [Buildings,'Bitta hisob, bir nechta kompaniya','Kompaniyani tanlaysiz va uning hujjatlari, rekvizitlari hamda amallar tarixini darhol ko‘rasiz.'],
-  [Sparkle,'Tekshiruvda yordamchi izoh','AI hujjatni o‘qib, xato va ziddiyatlarni o‘zi topadi. Qabul qilish qarori sizda qoladi.'],
-  [CalendarCheck,'Davrni ishonch bilan yopasiz','Oylik hujjatlar va ustav, guvohnoma, shartnomalar alohida turadi. Barcha talablar bajarilganda davrni yopasiz.'],
-  [LockKey,'Fayllar yopiq saqlanadi','Hujjatlar faqat sizning hisobingiz orqali ochiladi. Avtomatik tekshiruv va MSFOga o‘tkazish vaqtida hujjat mazmuni AI tahlil xizmatiga yuboriladi.'],
-  [DeviceMobile,'Telefonda ham, kompyuterda ham','Telefon, planshet va kompyuterda bir xil ishlaydi. Kompaniyalar va fayllar zaxirasini ilovadan yuklab olasiz.'],
-  [Files,'Kundalik fayl turlari','PDF, JPG, PNG, XLSX va CSV fayllarini yuklaysiz. Har bir fayl 25 MBgacha bo‘lishi mumkin.'],
+  {id:'nazorat',eyebrow:'Ko‘p kompaniyali nazorat',title:'Qaysi kompaniyada nima kutilayotgani — bir qarashda.',text:'Bosh sahifada tekshiruvingizni kutayotgan hujjatlar navbati va har bir kompaniyaning davr bo‘yicha holati turadi. Yon paneldan istalgan kompaniyaga bir bosishda o‘tasiz.',
+    points:['Tekshiruv navbati: eng yangi hujjatlar yuqorida','Har kompaniya uchun davr holati va to‘liqlik','Kompaniyalar bir-birining ma’lumotini ko‘rmaydi'],
+    src:'/shots/home.webp',alt:'Hisobkor bosh sahifasi: tekshiruvni kutayotgan hujjatlar navbati va kompaniyalar ro‘yxati, har birida davr holati.'},
+  {id:'holat',eyebrow:'Har faylning holati',title:'Har bir hujjat qayerda turgani aniq.',text:'Hujjat «Tekshirish kerak», «Kutilmoqda» yoki «Qabul qilingan» holatida bo‘ladi. Filtr, qidiruv va davrni yopish uchun nima qolgani bitta sahifada.',
+    points:['Holat rang bilan emas, belgi va so‘z bilan ham ko‘rsatiladi','Har qaror kim va qachon berilgani bilan tarixda','Reyestrni CSV faylga yuklab olasiz'],
+    src:'/shots/documents.webp',alt:'Hisobkor hujjatlar sahifasi: oylik hujjatlar jadvali, holat bo‘yicha filtrlar va davrni yopish uchun qolgan talablar.'},
+  {id:'mhxs',eyebrow:'MHXS ishchi qoralamasi',title:'Hisobotni MHXS shakliga — tekshiriladigan qoralama sifatida.',text:'AI milliy standart bo‘yicha tuzilgan hisobot yoki matnni MHXS tuzilishi va atamalariga moslaydi. Manbada yo‘q qiymat o‘ylab topilmaydi — «[ma’lumot kerak]» deb belgilanadi.',
+    points:['Word’ga o‘xshash redaktor: jadval, sarlavha, ro‘yxat','Har o‘zgarish tegishli standart bilan izohlanadi','Natija — buxgalter tekshiradigan qoralama, audit xulosasi emas'],
+    src:'/shots/msfo.webp',alt:'Hisobkor MHXS redaktori: moliyaviy holat to‘g‘risidagi hisobot jadvali, formatlash paneli va o‘ng tomonda AI izohlari.'},
 ] as const;
 
-const msfoPoints=[
-  [MicrosoftWordLogo,'PDF yoki Word yuklang','PDF (skanerlangan ham), .docx fayl yoki nusxa olingan matn: jadvallar va sarlavhalar saqlanadi.'],
-  [Table,'MSFO shakllari','Moliyaviy holat, foyda yoki zarar, pul oqimlari va transformatsion tuzatishlar jadvali.'],
-  [MagicWand,'Tanlangan qismni qayta yozish','Paragraf yoki jadvalni belgilab, AI’dan MSFO atamalariga moslashni so‘raysiz.'],
-  [FileArrowDown,'Word’ga qaytaring','Redaktorda tuzatib, natijani .docx fayl sifatida yuklab olasiz.'],
-] as const;
-
-const steps=[
-  ['Profilingizni to‘ldiring','Login va parol bilan hisob yarating, so‘ng buxgalter ma’lumotlaringizni kiriting.'],
-  ['Kompaniya qo‘shing','Faqat tashkilot nomi kerak. Rekvizitlarni keyinroq to‘ldirasiz.'],
-  ['Hujjatlar bilan ishlang','Fayllarni yuklang, izohlarni ko‘ring va qaroringizni belgilang.'],
+const trust=[
+  [LockKey,'Fayllar yopiq saqlanadi','Hujjatlar ommaviy havolasiz, yopiq omborda turadi va faqat sizning hisobingiz orqali ochiladi.'],
+  [ShieldCheck,'AI faqat roziligingiz bilan','«AI tahliliga ruxsat» o‘chirilsa, fayl AI xizmatiga yuborilmaydi — yuklash va qo‘lda tekshirish ishlayveradi. AI xizmati (OpenAI) serverlari O‘zbekistonda emas.'],
+  [SealCheck,'Qarorni buxgalter beradi','AI hujjatni o‘zi qabul qilmaydi va raqam to‘qimaydi. U izoh qoldiradi, yakuniy qaror sizda.'],
+  [ClockCounterClockwise,'Har amal tarixda','Kim, qachon va qaysi hujjat bo‘yicha qaror qilgani kompaniya tarixida saqlanadi.'],
+  [UsersThree,'Kompaniyalar ajratilgan','Har bir kompaniyaning hujjatlari, qarorlari va tarixi alohida yuritiladi.'],
+  [Files,'Zaxira sizning qo‘lingizda','Kompaniyalar va fayllar zaxirasini ilova ichidan istalgan vaqtda yuklab olasiz.'],
 ] as const;
 
 export const questions=[
-  ['Ishni qanday boshlayman?','Login va parol bilan hisob yaratasiz. Parol kamida 12 belgidan iborat bo‘lishi kerak, elektron pochtani tasdiqlash bosqichi yo‘q. So‘ng profilingizni to‘ldirasiz va birinchi kompaniyangizni qo‘shasiz.'],
+  ['Ishni qanday boshlayman?','Login va parol bilan hisob yaratasiz (parol kamida 12 belgi). So‘ng profilingizni to‘ldirasiz va birinchi kompaniyangizni qo‘shasiz — buning uchun faqat tashkilot nomi kerak.'],
   ['Bir nechta kompaniya bilan ishlasam bo‘ladimi?','Ha. Bitta hisobga bir nechta kompaniya qo‘shasiz. Har birining hujjatlari, rekvizitlari va amallar tarixi alohida saqlanadi.'],
-  ['Qaysi fayllarni yuklash mumkin?','PDF, JPG, PNG, XLSX va CSV fayllari. Har bir fayl 25 MBgacha bo‘lishi mumkin.'],
-  ['AI hujjatni o‘zi qabul qiladimi?','Yo‘q. AI hujjatni o‘qiydi va yordamchi izoh qoldiradi. AI xato va ziddiyatlarni topib ko‘rsatadi, hujjatni qabul qilish qarorini esa buxgalter beradi.'],
-  ['MSFO redaktori nima qiladi?','PDF yoki Word (.docx) hujjatini, yoki nusxa olingan matnni MSFO (IFRS) shakliga o‘tkazadi: moliyaviy hisobot uchun MSFO shakllari va transformatsion tuzatishlar jadvali, matnli hujjat uchun MSFO atamalari va tuzilishi. Natijani redaktorda tahrirlab, .docx qilib yuklab olasiz.'],
-  ['AI raqamlarni o‘zi to‘ldirib qo‘ymaydimi?','Yo‘q. Manbada yo‘q qiymat «[ma’lumot kerak]» deb belgilanadi va har bir o‘zgarish standart (IAS/IFRS) bilan izohlanadi. Natija — buxgalter tekshiradigan qoralama.'],
-  ['Hujjatlarim maxfiyligi qanday?','Fayllar yopiq saqlanadi va faqat sizning hisobingiz orqali ochiladi. Avtomatik tekshiruv va MSFOga o‘tkazish vaqtida hujjat mazmuni AI tahlil xizmatiga yuboriladi.'],
-  ['Oylik va doimiy hujjatlar qanday ajratiladi?','Oylik, ya’ni davr hujjatlari va doimiy hujjatlar (ustav, guvohnoma, shartnomalar) alohida saqlanadi. Davrni barcha talablar bajarilganda yopasiz.'],
-  ['Qaror tarixini keyin ko‘ra olamanmi?','Ha. Har bir qaror saqlanadi: kim, qachon va nima qilgani kompaniyaning amallar tarixida turadi.'],
-  ['Ma’lumotlarimni yuklab olsam bo‘ladimi?','Ha. Kompaniyalar va fayllar zaxirasini ilovaning ichidan yuklab olasiz.'],
-  ['Telefonda ishlaydimi?','Ha. Hisobkor telefon, planshet va kompyuterda ishlaydi.'],
+  ['Qaysi fayllarni yuklash mumkin?','Hujjatlar uchun PDF, JPG, PNG, XLSX va CSV — har bir fayl 25 MBgacha. MHXS redaktoriga PDF (skanerlangan ham) yoki Word (.docx) yuklanadi.'],
+  ['AI hujjatni o‘zi qabul qiladimi?','Yo‘q. AI hujjatni o‘qiydi va xato hamda ziddiyatlarni izoh sifatida belgilaydi. Hujjatni qabul qilish qarorini buxgalter beradi.'],
+  ['MHXS redaktori nima qiladi?','PDF yoki Word hisobotni, yoki nusxa olingan matnni MHXS (MSFO / IFRS) tuzilishi va atamalariga moslangan qoralamaga aylantiradi. Siz uni redaktorda tekshirib, tahrirlab, .docx qilib yuklab olasiz. Bu to‘liq MHXS transformatsiyasi yoki audit xulosasi emas.'],
+  ['AI raqamlarni o‘zi to‘ldirib qo‘ymaydimi?','Yo‘q. Manbada yo‘q qiymat «[ma’lumot kerak]» deb belgilanadi va har bir o‘zgarish tegishli standart bilan izohlanadi.'],
+  ['Hujjatlarim qayerga yuboriladi?','Fayllar yopiq omborda saqlanadi. «AI tahliliga ruxsat» yoqilgan bo‘lsa, tekshiruv va MHXSga o‘tkazish vaqtida hujjat mazmuni AI xizmatiga (OpenAI) yuboriladi; uning serverlari O‘zbekistonda joylashmagan. Ruxsatni istalgan vaqtda o‘chirishingiz mumkin.'],
+  ['Oylik va doimiy hujjatlar qanday ajratiladi?','Oylik (davr) hujjatlari va doimiy hujjatlar — ustav, guvohnoma, shartnomalar — alohida saqlanadi. Barcha talablar bajarilganda davrni yopasiz.'],
+  ['Telefonda ishlaydimi?','Ha. Hisobkor telefon, planshet va kompyuterda brauzer orqali ishlaydi.'],
 ] as [string,string][];
 
 export function Landing(){
   useReveal();
-  return <div className="isolate bg-white text-zinc-950 antialiased">
-    <a href="#main" className="fixed top-2 left-2 z-50 -translate-y-24 rounded-lg bg-zinc-950 px-4 py-3 text-sm font-semibold text-white focus:translate-y-0">Asosiy qismga o‘tish</a>
+  return <div className="isolate bg-background text-foreground antialiased">
+    <a href="#main" className="fixed top-2 left-2 z-50 -translate-y-24 rounded-lg bg-foreground px-4 py-3 text-sm font-semibold text-background focus:translate-y-0">Asosiy qismga o‘tish</a>
 
-    <header className="sticky top-0 z-40 border-b border-zinc-950/5 bg-white pt-[env(safe-area-inset-top)]">
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 pt-[env(safe-area-inset-top)]">
       <div className={`${container} flex h-16 items-center gap-6`}>
         <div className="flex flex-1 items-center"><Logo/></div>
-        <nav aria-label="Asosiy navigatsiya" className="flex items-center gap-8 max-lg:hidden">
-          {links.map(([href,label])=><a href={href} key={href} className="py-2.5 text-sm font-medium text-zinc-600 hover:text-zinc-950">{label}</a>)}
+        <nav aria-label="Asosiy navigatsiya" className="flex items-center gap-7 max-lg:hidden">
+          {links.map(([href,label])=><a href={href} key={href} className="py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground">{label}</a>)}
         </nav>
-        <div className="flex flex-1 items-center justify-end gap-5">
-          <a href={app} className="py-2.5 text-sm font-medium text-zinc-600 hover:text-zinc-950 max-lg:hidden">Kirish</a>
+        <div className="flex flex-1 items-center justify-end gap-4">
+          <a href={app} className="py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground max-lg:hidden">Kirish</a>
           <span className="max-sm:hidden"><StartCta size="sm"/></span>
           <MobileMenu links={links} app={app}/>
         </div>
@@ -117,123 +103,88 @@ export function Landing(){
     </header>
 
     <main id="main">
-      <section className="overflow-hidden pt-16 pb-20 sm:pt-24 sm:pb-28">
-        <div className={container}>
-          <div className="text-center">
-            <p className="text-base font-semibold text-primary sm:text-sm">Buxgalterlar uchun ish joyi</p>
-            <h1 className="mx-auto mt-4 max-w-[30ch] text-4xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-5xl lg:text-[3.5rem]">
-              <span className="sm:block">Mijoz hujjatlari bitta joyda.</span> <span className="sm:block">Qarorni siz berasiz.</span>
-            </h1>
-            <p className="mx-auto mt-6 max-w-[48ch] text-lg text-pretty text-zinc-600">
-              Har bir kompaniyaning hujjatlari, tekshiruv izohlari va qaror tarixi bitta tartibli ish joyida turadi.
-            </p>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+      {/* Hero: promise and first action on the left, the real product on the right. */}
+      <section className="relative overflow-hidden pt-12 pb-16 sm:pt-20 sm:pb-24">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[36rem] bg-[radial-gradient(60rem_28rem_at_75%_0%,rgb(54_185_246/0.14),transparent_70%),radial-gradient(40rem_24rem_at_10%_10%,rgb(23_70_200/0.08),transparent_70%)]"/>
+        <div className={`${container} grid grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-10`}>
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold text-muted-foreground shadow-[0_1px_2px_rgb(21_35_59/0.05)]"><span aria-hidden="true" className="size-1.5 rounded-full bg-azure"/>Buxgalterlar va moliya jamoalari uchun</p>
+            <h1 className="mt-5 text-[2.5rem] leading-[1.05] font-semibold tracking-[-0.03em] text-balance sm:text-[3.25rem] lg:text-[3.5rem]">Bir nechta kompaniya. <span className="text-primary">Bitta aniq ish jarayoni.</span></h1>
+            <p className="mt-6 max-w-[46ch] text-lg text-pretty text-muted-foreground">Hujjatlarni yig‘ish, ularni tekshirish va MHXS qoralamasini tayyorlash — har bir kompaniya uchun bitta joyda, har qadamda keyingi amal ko‘rinib turadi.</p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
               <StartCta/>
-              <a href="#tartib" className={`${secondary} text-zinc-950 hover:text-primary`}>Qanday ishlaydi<ArrowRight size={16} weight="bold" className="shrink-0" aria-hidden="true"/></a>
+              <a href="#ilova" className={secondary}><Eye size={18} className="shrink-0 text-primary" aria-hidden="true"/>Ilovani ko‘rish</a>
             </div>
-            <p className="mx-auto mt-5 max-w-[56ch] text-base text-pretty text-zinc-500 sm:text-sm">Login va parol kifoya. Kompaniya qo‘shish uchun faqat nom kerak.</p>
+            <p className="mt-5 text-sm text-pretty text-muted-foreground">Login va parol kifoya. Kompaniya qo‘shish uchun faqat nom kerak.</p>
           </div>
-
-          <figure className="mt-14 sm:mt-20">
-            <Screenshot eager src="/shots/overview.webp" alt="Hisobkor ilovasi: Atlas Savdo kompaniyasining sentabr davri — bitta hujjat qarorni kutmoqda, quyida so‘nggi hujjatlar ro‘yxati va ularning holati."/>
-            <figcaption className="mt-4 text-center text-base text-zinc-500 sm:text-sm">Platformaning haqiqiy ko‘rinishi, namuna ma’lumotlar bilan.</figcaption>
+          <figure id="ilova" className="relative min-w-0 scroll-mt-24">
+            <Screenshot eager src="/shots/overview.webp" alt="Hisobkor ilovasi: Atlas Savdo kompaniyasining sentabr davri — bitta hujjat qarorni kutmoqda, quyida so‘nggi hujjatlar ro‘yxati va ularning holati." className="lg:w-[118%]"/>
+            <Character pose="welcome" width={250} eager className="absolute -bottom-12 -left-3 w-32! drop-shadow-[0_18px_24px_rgb(21_35_59/0.18)] sm:w-44! lg:-bottom-16 lg:-left-10 lg:w-[210px]!"/>
+            <figcaption className="mt-4 pl-36 text-right text-sm text-muted-foreground sm:pl-48">Haqiqiy ilova, namuna ma’lumotlar bilan.</figcaption>
           </figure>
-
-          <ul role="list" className="mt-12 grid gap-y-4 border-t border-zinc-950/10 pt-8 sm:grid-cols-3 sm:gap-x-8">
-            {facts.map(([Glyph,text])=><li key={text} className="flex items-start gap-3 text-base text-zinc-600 sm:text-sm">
-              <span className="flex h-lh items-center"><Glyph size={20} className="shrink-0 text-primary" aria-hidden="true"/></span>{text}
-            </li>)}
-          </ul>
         </div>
       </section>
 
-      <section id="nega" className="scroll-mt-20 border-t border-zinc-950/5 py-20 sm:py-28">
+      {/* The chain, exactly as it works today. */}
+      <section id="jarayon" className="scroll-mt-20 border-t border-border/70 bg-card py-20 sm:py-24">
         <div className={container}>
-          <HeadingGroup eyebrow="Nega kerak" title="Hujjatlar tarqoq kelsa, nazorat sizdan chiqib ketadi."
-            text="Hisobkor hujjatni qidirishga emas, tekshirishga vaqt ajratishingiz uchun qilingan."/>
-          <div className="mt-14 grid gap-x-8 gap-y-12 lg:grid-cols-2" data-reveal>
-            <div className="border-t border-zinc-950/10 pt-6">
-              <h3 className="text-lg font-semibold text-zinc-950">Odatdagi kun</h3>
-              <ul role="list" className="mt-5 flex flex-col gap-4">
-                {pains.map(text=><li key={text} className="flex items-start gap-3 text-base text-pretty text-zinc-600">
-                  <span className="flex h-lh items-center"><X size={16} weight="bold" className="shrink-0 text-zinc-400" aria-hidden="true"/></span>{text}
-                </li>)}
-              </ul>
-            </div>
-            <div className="border-t border-primary pt-6">
-              <h3 className="text-lg font-semibold text-zinc-950">Hisobkor bilan</h3>
-              <ul role="list" className="mt-5 flex flex-col gap-4">
-                {gains.map(text=><li key={text} className="flex items-start gap-3 text-base text-pretty text-zinc-950">
-                  <span className="flex h-lh items-center"><Check size={16} weight="bold" className="shrink-0 text-primary" aria-hidden="true"/></span>{text}
-                </li>)}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="imkoniyatlar" className="scroll-mt-20 border-t border-zinc-950/5 bg-zinc-50 py-20 sm:py-28">
-        <div className={container}>
-          <HeadingGroup eyebrow="Imkoniyatlar" title="Kundalik ishda nimaga tayanasiz."
-            text="Har bir hujjatning holati, izohi va qarori bitta ro‘yxatda ko‘rinadi."/>
-          <figure className="mt-14" data-reveal>
-            <Screenshot src="/shots/documents.webp" alt="Hisobkor ilovasi: kompaniyaning oylik hujjatlari ro‘yxati, holat bo‘yicha filtrlar va davrni yopish uchun qolgan talablar."/>
-          </figure>
-          <dl className="mt-16 grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-            {benefits.map(([Glyph,title,text])=><div key={title} data-reveal>
-              <dt className="text-base font-semibold text-zinc-950">
-                <Glyph size={24} className="mb-4 shrink-0 text-primary" aria-hidden="true"/>
-                {title}
-              </dt>
-              <dd className="mt-2 text-base text-pretty text-zinc-600">{text}</dd>
-            </div>)}
-          </dl>
-        </div>
-      </section>
-
-      <section id="msfo" className="scroll-mt-20 border-t border-zinc-950/5 py-20 sm:py-28">
-        <div className={container}>
-          <HeadingGroup eyebrow="MSFO redaktori" title="PDF yoki Word hisobotni MSFO shakliga o‘tkazing."
-            text="AI milliy standart bo‘yicha tuzilgan hisobot yoki matnni MSFO (IFRS) tuzilishi va atamalariga moslaydi. Siz Word’ga o‘xshash redaktorda tekshirib, tahrirlaysiz."/>
-          <figure className="mt-14" data-reveal>
-            <Screenshot src="/shots/msfo.webp" alt="Hisobkor MSFO redaktori: moliyaviy holat to‘g‘risidagi hisobot jadvali, formatlash paneli va o‘ng tomonda standartlar bilan AI izohlari."/>
-          </figure>
-          <dl className="mt-16 grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
-            {msfoPoints.map(([Glyph,title,text])=><div key={title} data-reveal>
-              <dt className="text-base font-semibold text-zinc-950">
-                <Glyph size={24} className="mb-4 shrink-0 text-primary" aria-hidden="true"/>
-                {title}
-              </dt>
-              <dd className="mt-2 text-base text-pretty text-zinc-600">{text}</dd>
-            </div>)}
-          </dl>
-          <p className="mt-12 max-w-[64ch] text-sm text-pretty text-zinc-600" data-reveal>Raqamlar o‘ylab topilmaydi: manbada yo‘q qiymat «[ma’lumot kerak]» deb belgilanadi, har bir o‘zgarish tegishli standart bilan izohlanadi. Natija — buxgalter tekshiradigan qoralama, auditorlik xulosasi emas.</p>
-        </div>
-      </section>
-
-      <section id="tartib" className="scroll-mt-20 border-t border-zinc-950/5 py-20 sm:py-28">
-        <div className={container}>
-          <HeadingGroup eyebrow="Qanday ishlaydi" title="Uch qadamda ishga tayyor."/>
-          <ol role="list" className="mt-14 grid gap-x-8 gap-y-10 lg:grid-cols-3">
-            {steps.map(([title,text],i)=><li key={title} className="border-t border-zinc-950/10 pt-6" data-reveal>
-              <p className="font-mono text-sm font-medium tracking-wide text-primary tabular-nums" aria-hidden="true">0{i+1}</p>
-              <h3 className="mt-4 text-lg font-semibold text-zinc-950">{title}</h3>
-              <p className="mt-2 max-w-[48ch] text-base text-pretty text-zinc-600">{text}</p>
+          <HeadingGroup eyebrow="Qanday ishlaydi" title="Kompaniyadan eksportgacha — besh aniq qadam." text="Har ekranda bitta keyingi amal, holat va mas’ul ko‘rinadi. AI yordam beradi, qarorni esa siz berasiz."/>
+          <ol role="list" className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:gap-3">
+            {flow.map(([Glyph,title,text],i)=><li key={title} className="relative flex flex-col gap-3 rounded-2xl border border-border bg-background p-5" data-reveal>
+              <div className="flex items-center justify-between">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary"><Glyph size={20} aria-hidden="true"/></span>
+                <span className="font-mono text-xs font-semibold text-muted-foreground tabular-nums" aria-hidden="true">0{i+1}</span>
+              </div>
+              <h3 className="font-semibold">{title}</h3>
+              <p className="text-sm text-pretty text-muted-foreground">{text}</p>
+              {i<flow.length-1&&<ArrowRight size={16} weight="bold" aria-hidden="true" className="absolute top-1/2 -right-3 z-10 hidden -translate-y-1/2 rounded-full bg-card text-border lg:block"/>}
             </li>)}
           </ol>
         </div>
       </section>
 
-      <section id="savollar" className="scroll-mt-20 border-t border-zinc-950/5 py-20 sm:py-28">
-        <div className={`${container} grid gap-x-8 gap-y-12 lg:grid-cols-3`}>
-          <HeadingGroup eyebrow="Savol-javob" title="Ish boshlashdan oldin."/>
+      {/* Three benefits, each proven with a real screen. */}
+      <section id="imkoniyatlar" className="scroll-mt-20 py-20 sm:py-28">
+        <div className={`${container} flex flex-col gap-24 sm:gap-32`}>
+          {benefits.map((b,i)=><div key={b.id} className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14">
+            <div className={i%2?'lg:order-2':''}>
+              <HeadingGroup eyebrow={b.eyebrow} title={b.title} text={b.text}/>
+              <ul role="list" className="mt-7 flex flex-col gap-3" data-reveal>
+                {b.points.map(p=><li key={p} className="flex items-start gap-3 text-base text-pretty"><span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-primary"><Check size={12} weight="bold" aria-hidden="true"/></span>{p}</li>)}
+              </ul>
+            </div>
+            <figure className={`min-w-0 ${i%2?'lg:order-1':''}`} data-reveal><Screenshot src={b.src} alt={b.alt}/></figure>
+          </div>)}
+        </div>
+      </section>
+
+      {/* Trust: only what the product actually does. */}
+      <section id="xavfsizlik" className="scroll-mt-20 border-y border-border/70 bg-card py-20 sm:py-24">
+        <div className={container}>
+          <HeadingGroup eyebrow="Xavfsizlik va ishonch" title="Ma’lumotlaringiz bilan nima bo‘lishini oldindan bilasiz." text="Hech qanday «100% avtomatik» va’da yo‘q — faqat amalda ishlaydigan mexanizmlar."/>
+          <dl className="mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+            {trust.map(([Glyph,title,text])=><div key={title} data-reveal className="flex gap-4">
+              <dt className="sr-only">{title}</dt>
+              <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary"><Glyph size={20}/></span>
+              <dd><p className="font-semibold text-foreground">{title}</p><p className="mt-1.5 text-sm text-pretty text-muted-foreground">{text}</p></dd>
+            </div>)}
+          </dl>
+        </div>
+      </section>
+
+      <section id="savollar" className="scroll-mt-20 py-20 sm:py-28">
+        <div className={`${container} grid gap-x-10 gap-y-12 lg:grid-cols-3`}>
+          <div>
+            <HeadingGroup eyebrow="Savollar" title="Ish boshlashdan oldin."/>
+            <p className="mt-5 max-w-[36ch] text-sm text-pretty text-muted-foreground" data-reveal>Javoblar mahsulot qanday ishlashi haqida. Ular moliyaviy yoki yuridik maslahat emas.</p>
+          </div>
           <div className="lg:col-span-2" data-reveal>
-            {questions.map(([question,answer])=><details key={question} name="faq" className="group border-b border-zinc-950/10 first:border-t">
-              <summary className="flex cursor-pointer list-none items-start justify-between gap-6 py-5 text-base font-semibold text-zinc-950 hover:text-primary [&::-webkit-details-marker]:hidden">
+            {questions.map(([question,answer])=><details key={question} name="faq" className="group border-b border-border first:border-t">
+              <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-6 py-5 text-base font-semibold hover:text-primary [&::-webkit-details-marker]:hidden">
                 {question}
-                <span className="flex h-lh items-center"><CaretDown size={16} weight="bold" className="shrink-0 text-zinc-500 transition-transform duration-200 group-open:rotate-180" aria-hidden="true"/></span>
+                <span className="flex h-lh items-center"><CaretDown size={16} weight="bold" className="shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" aria-hidden="true"/></span>
               </summary>
-              <p className="max-w-[64ch] pb-6 text-base text-pretty text-zinc-600">{answer}</p>
+              <p className="max-w-[64ch] pb-6 text-base text-pretty text-muted-foreground">{answer}</p>
             </details>)}
           </div>
         </div>
@@ -241,31 +192,37 @@ export function Landing(){
 
       <section className="pb-20 sm:pb-28">
         <div className={container}>
-          <div className="rounded-3xl bg-zinc-950 px-6 py-16 text-center sm:py-24" data-reveal>
-            <h2 className="mx-auto max-w-[30ch] text-3xl font-semibold tracking-tight text-balance text-white sm:text-5xl">Keyingi ish kuningizni tartib bilan boshlang.</h2>
-            <p className="mx-auto mt-6 max-w-[48ch] text-lg text-pretty text-zinc-400">Hisob yarating, birinchi kompaniyangizni qo‘shing va hujjatlarni bir joyda yuriting.</p>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-              <StartCta/>
-              <a href={app} className={`${secondary} text-white hover:text-zinc-300`}>Kirish<ArrowRight size={16} weight="bold" className="shrink-0" aria-hidden="true"/></a>
+          <div className="relative isolate overflow-hidden rounded-3xl bg-ink px-6 py-14 sm:px-12 sm:py-16" data-reveal>
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(rgb(255_255_255/0.07)_1px,transparent_1px)] [mask-image:linear-gradient(to_left,black,transparent_75%)] bg-[size:18px_18px]"/>
+            <div className="flex flex-col items-center gap-8 text-center md:flex-row md:text-left">
+              <Character pose="invite" width={170} className="max-sm:w-32!"/>
+              <div className="flex-1">
+                <h2 className="max-w-[26ch] text-3xl font-semibold tracking-[-0.025em] text-balance text-white sm:text-4xl">Birinchi kompaniyangizni bugun qo‘shing.</h2>
+                <p className="mt-4 max-w-[48ch] text-lg text-pretty text-ink-muted">Hisob yarating, kompaniya nomini kiriting va hujjatlarni bir joyda yuriting.</p>
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+                  <StartCta/>
+                  <a href={app} className="inline-flex min-h-11 items-center gap-1.5 px-2 font-semibold text-white hover:text-ink-primary">Kirish<ArrowRight size={16} weight="bold" className="shrink-0" aria-hidden="true"/></a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
     </main>
 
-    <footer id="site-footer" className="border-t border-zinc-950/10 pb-[max(--spacing(10),env(safe-area-inset-bottom))]">
+    <footer id="site-footer" className="border-t border-border pb-[max(--spacing(10),env(safe-area-inset-bottom))]">
       <div className={`${container} flex flex-col gap-8 pt-10 lg:flex-row lg:items-start lg:justify-between`}>
         <div>
           <Logo/>
-          <p className="mt-3 text-base text-zinc-600 sm:text-sm">Buxgalteriya, tartib bilan.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Buxgalteriya, tartib bilan.</p>
         </div>
         <nav aria-label="Pastki navigatsiya" className="flex flex-wrap gap-x-8">
-          {links.map(([href,label])=><a href={href} key={href} className="py-2.5 text-base font-normal text-zinc-600 hover:text-zinc-950 sm:text-sm">{label}</a>)}
-          <a href={app} className="py-2.5 text-base font-normal text-zinc-600 hover:text-zinc-950 sm:text-sm">Platformaga kirish</a>
+          {links.map(([href,label])=><a href={href} key={href} className="py-2.5 text-sm text-muted-foreground hover:text-foreground">{label}</a>)}
+          <a href={app} className="py-2.5 text-sm text-muted-foreground hover:text-foreground">Platformaga kirish</a>
         </nav>
       </div>
       <div className={`${container} mt-10`}>
-        <p className="border-t border-zinc-950/5 pt-6 text-base text-zinc-500 sm:text-sm">© 2026 Hisobkor.uz</p>
+        <p className="border-t border-border/70 pt-6 text-sm text-muted-foreground">© 2026 Hisobkor.uz</p>
       </div>
     </footer>
   </div>;

@@ -10,8 +10,9 @@ import {Spinner} from './components/ui/spinner';
 import {Icon} from './Icon';
 import {request} from './storage';
 import {AdminPage} from './Admin';
+import {Wordmark} from './components/Character';
 
-function Brand(){return <span className="flex items-center gap-2"><img src="/brand-h.png" width="28" height="28" alt="" className="size-7 object-contain"/><span className="text-base font-semibold tracking-tight">hisobkor<span className="font-normal text-muted-foreground">.uz</span></span><span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">Admin</span></span>}
+function Brand(){return <span className="flex items-center gap-2"><Wordmark size={28}/><span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">Admin</span></span>}
 
 function AdminApp(){
  const [session,setSession]=useState<any>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
