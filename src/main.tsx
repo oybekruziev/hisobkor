@@ -92,6 +92,7 @@ function App({saved,session,logout}:any){
  const nextFilter=useRef<string|null>(null);
  const [aiAuto,setAiAuto]=useState(initial.aiAuto!==false);
  const [aiOpen,setAiOpen]=useState(false);
+ const [companyQuery,setCompanyQuery]=useState('');
  useEffect(()=>{const update=()=>{setRoute(appRoute(location.hash.slice(1),companies));setQuery('');setFilter(nextFilter.current||'all');nextFilter.current=null;setMobileMenu(false)};addEventListener('hashchange',update);return()=>removeEventListener('hashchange',update)},[companies]);
  const workspaceState={...initial,companies,docs,activity,closed,profile,aiAuto,msfo,workspace:profile?.workspace||initial.workspace};
  useEffect(()=>{let current=true;pendingSave.current=true;setSaveStatus('saving');const t=setTimeout(()=>{saveState(workspaceState).then(()=>{if(current){pendingSave.current=false;setSavedError('');setSaveStatus('saved')}}).catch(e=>{if(current){setSavedError(e.message||'Ma’lumotlar saqlanmadi.');setSaveStatus('error')}})},200);return()=>{current=false;clearTimeout(t)}},[companies,docs,activity,closed,profile,aiAuto,msfo]);
@@ -114,6 +115,7 @@ function App({saved,session,logout}:any){
  const current=company?companyRequirements(docs,company.id,period).filter(d=>showSampleDocs||!d.demo):[];
  const stats=summarize(current);
  const documentList=company?(tab==='archive'?docs.filter(d=>d.company===company.id&&d.scope==='permanent'&&(showSampleDocs||!d.demo)):current):[];
+ const showAi=documentList.some((d:any)=>eligible(d)&&d.ai);
  const visible=documentList.filter(d=>(filter==='all'||(filter==='outstanding'?['missing','correction_requested'].includes(d.status):d.status===filter))&&`${d.title} ${d.fileName}`.toLowerCase().includes(query.toLowerCase()));
  function saveProfile(e:any){e.preventDefault();const f=new FormData(e.currentTarget);const value={fullName:String(f.get('fullName')).trim(),phone:String(f.get('phone')).trim(),email:String(f.get('email')||'').trim(),workspace:String(f.get('workspace')||'').trim()};const message=profileError(value);if(message){setError(message);return;}setProfile(value);setError('');setModal(null);go('dashboard');setToast('Profil saqlandi. Endi kompaniyalaringiz bilan ishlashingiz mumkin.');}
  function ProfileForm({editing=false}:any){const errorId=error?'profile-error':undefined;const bad=!!error;return <form onSubmit={saveProfile} noValidate aria-describedby={errorId}><FieldGroup><Field data-invalid={bad||undefined}><FieldLabel htmlFor="profile-name">Ism va familiya</FieldLabel><Input id="profile-name" name="fullName" autoComplete="name" required maxLength={100} placeholder="Ism va familiyangiz" defaultValue={profile?.fullName||''} aria-invalid={bad||undefined} aria-describedby={errorId}/><FieldDescription>Hujjat qarorlarida va tarixda shu ism ko‘rinadi.</FieldDescription></Field><Field data-invalid={bad||undefined}><FieldLabel htmlFor="profile-phone">Telefon raqami</FieldLabel><Input id="profile-phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" required maxLength={20} placeholder="+998 90 123 45 67" defaultValue={profile?.phone||''} aria-invalid={bad||undefined} aria-describedby={errorId}/></Field><Field><FieldLabel htmlFor="profile-email">Elektron pochta <span className="font-normal text-muted-foreground">Ixtiyoriy</span></FieldLabel><Input id="profile-email" name="email" type="email" inputMode="email" autoComplete="email" placeholder="siz@pochta.uz" defaultValue={profile?.email||''}/></Field><Field><FieldLabel htmlFor="profile-workspace">Buxgalteriya xizmatingiz nomi <span className="font-normal text-muted-foreground">Ixtiyoriy</span></FieldLabel><Input id="profile-workspace" name="workspace" maxLength={80} placeholder="Masalan, Hisob Servis" defaultValue={profile?.workspace||''}/><FieldDescription>Yon panelda ismingiz ostida ko‘rinadi.</FieldDescription></Field>{error&&<FieldError id="profile-error">{error}</FieldError>}<Button type="submit" className="w-full">{editing?'Saqlash':'Davom etish'}<Icon name="arrow"/></Button></FieldGroup><p className="mt-4 flex items-start gap-2 text-sm text-muted-foreground"><Icon name="shield" size={16} className="mt-0.5 shrink-0"/>{session.storage==='server'?'Ma’lumotlar serverdagi ish joyingizda saqlanadi.':'Ma’lumotlar shu brauzerda saqlanadi.'}</p></form>}
@@ -131,22 +133,31 @@ function App({saved,session,logout}:any){
  async function download(d:any){try{const file=await getFile(d.fileKey||d.id,d.fileName);if(!file)throw Error();const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download=d.fileName;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch{setFileError('Asl fayl topilmadi.')}}
  function exportCSV(){const lines=[['Kompaniya','Hujjat','Davr','Holat'],...documentList.map(d=>[company.name,d.title,d.scope==='permanent'?'Doimiy':d.period,statuses[d.status]])];const url=URL.createObjectURL(new Blob(['\ufeff'+lines.map(r=>r.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=`${company.name}-${period}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setToast('Hujjatlar reyestri yuklab olindi.');}
  const shared=<>{savedError&&<Alert variant="destructive" role="alert" className="fixed bottom-20 left-1/2 z-50 w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 shadow-lg"><Icon name="alert"/><AlertTitle>{savedError}</AlertTitle><AlertDescription><div className="flex flex-wrap gap-2 pt-1"><Button size="sm" variant="outline" onClick={retrySave}>Qayta saqlash</Button><Button size="sm" variant="ghost" onClick={()=>open({type:'backup'})}>Zaxira olish</Button></div></AlertDescription></Alert>}<Toaster theme="light" position="bottom-left" closeButton toastOptions={{duration:4500}}/></>;
- if(!profile)return <div className="isolate flex min-h-svh w-full flex-col bg-muted/40 antialiased">
-  <header className="flex items-center justify-between gap-4 border-b bg-background px-4 py-3 lg:px-8"><Brand href="#dashboard"/><Button variant="outline" size="sm" onClick={()=>open({type:'backup'})}><Icon name="upload"/>Zaxiradan tiklash</Button></header>
-  <main className="mx-auto grid w-full max-w-5xl flex-1 items-center gap-10 px-4 py-10 lg:grid-cols-2 lg:gap-16 lg:px-8">
-   <section className="flex flex-col gap-6">
-    <div className="flex flex-col gap-3"><p className="text-sm font-medium text-primary">Ishni boshlash</p><h1 className="text-3xl font-semibold tracking-tight text-balance">Barcha kompaniyalaringiz. Bitta tartibli ish joyi.</h1><p className="text-pretty text-muted-foreground">Hujjatlarni yig‘ing, tekshiring va har bir kompaniya bo‘yicha tarixni saqlang.</p></div>
-    <ol role="list" className="flex flex-col gap-4">{[['O‘zingizni tanishtiring','Buxgalter ma’lumotlarini kiriting'],['Kompaniya qo‘shing','Xizmat ko‘rsatadigan tashkilotingiz'],['Hujjatlar bilan ishlang','Yuklang, tekshiring va tarixni kuzating']].map(([title,text],i)=><li key={title} className="flex gap-3" aria-current={i===0?'step':undefined}><span className={cn('flex size-8 shrink-0 items-center justify-center rounded-full border text-sm font-medium tabular-nums',i===0?'border-primary bg-primary text-primary-foreground':'bg-background text-muted-foreground')}>{i+1}</span><div><p className="text-sm font-medium">{title}</p><p className="text-sm text-muted-foreground">{text}</p></div></li>)}</ol>
-    <p className="flex items-start gap-2 text-sm text-muted-foreground"><Icon name="folder" size={16} className="mt-0.5 shrink-0"/>Hujjatlar har bir kompaniyada alohida saqlanadi.</p>
-   </section>
-   <Card><CardHeader><CardDescription>1 / 3 · Buxgalter profili</CardDescription><CardTitle className="text-xl">Avval siz bilan tanishamiz</CardTitle><CardDescription>Hujjatlardagi qarorlar va tarixda ismingiz ko‘rinadi. Keyingi qadam — birinchi kompaniyani qo‘shish.</CardDescription></CardHeader><CardContent>{ProfileForm({})}</CardContent></Card>
+ if(!profile)return <div className="isolate flex min-h-svh w-full flex-col bg-background antialiased"><div className="grid flex-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+  <aside className="relative flex flex-col justify-between gap-10 overflow-hidden bg-sidebar px-6 py-6 text-sidebar-foreground sm:px-10 lg:py-10">
+   <span aria-hidden="true" className="pointer-events-none absolute -bottom-32 -left-24 size-[28rem] rounded-full bg-sidebar-primary/10 blur-3xl"/>
+   <a href="#dashboard" aria-label="Hisobkor.uz" className="relative flex w-fit items-center gap-2.5"><img src="/brand-h.png" width="28" height="28" alt="" className="size-7 shrink-0 object-contain"/><span className="text-lg font-semibold tracking-tight">hisobkor<span className="font-normal text-sidebar-muted">.uz</span></span></a>
+   <div className="relative flex max-w-md flex-col gap-8 max-lg:hidden">
+    <div className="flex flex-col gap-3"><p className="text-sm font-medium text-sidebar-primary">Ishni boshlash</p><h1 className="text-[2.25rem] leading-tight font-semibold tracking-tight text-balance text-white">Barcha kompaniyalaringiz. Bitta tartibli ish joyi.</h1><p className="text-pretty text-white/70">Hujjatlarni yig‘ing, tekshiring va har bir kompaniya bo‘yicha tarixni saqlang.</p></div>
+    <ol role="list" className="flex flex-col gap-5">{[['O‘zingizni tanishtiring','Buxgalter ma’lumotlarini kiriting'],['Kompaniya qo‘shing','Xizmat ko‘rsatadigan tashkilotingiz'],['Hujjatlar bilan ishlang','Yuklang, tekshiring va tarixni kuzating']].map(([title,text],i)=><li key={title} className="flex gap-3.5" aria-current={i===0?'step':undefined}><span className={cn('flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums',i===0?'bg-sidebar-primary text-sidebar-primary-foreground':'border border-sidebar-border text-sidebar-muted')}>{i+1}</span><div><p className={cn('text-sm font-medium',i===0?'text-white':'text-sidebar-foreground')}>{title}</p><p className="text-sm text-sidebar-muted">{text}</p></div></li>)}</ol>
+   </div>
+   <p className="relative flex items-start gap-2 text-sm text-sidebar-muted max-lg:hidden"><Icon name="folder" size={16} className="mt-0.5 shrink-0"/>Hujjatlar har bir kompaniyada alohida saqlanadi.</p>
+  </aside>
+  <main className="flex flex-col px-4 py-8 sm:px-10 lg:py-10">
+   <div className="flex justify-end"><Button variant="ghost" size="sm" onClick={()=>open({type:'backup'})}><Icon name="upload"/>Zaxiradan tiklash</Button></div>
+   <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 py-8">
+    <div className="flex flex-col gap-2"><p className="text-sm font-medium text-primary tabular-nums">1-qadam / 3 · Buxgalter profili</p><h2 className="text-2xl font-semibold tracking-tight">Avval siz bilan tanishamiz</h2><p className="text-sm text-pretty text-muted-foreground">Hujjatlardagi qarorlar va tarixda ismingiz ko‘rinadi. Keyingi qadam — birinchi kompaniyani qo‘shish.</p></div>
+    {ProfileForm({})}
+   </div>
   </main>
-  <footer className="border-t bg-background px-4 py-4 text-sm text-muted-foreground lg:px-8">Hisobkor.uz · Buxgalterning kundalik ish joyi</footer>
+  </div>
   <Modal open={modal?.type==='backup'} onClose={()=>setModal(null)} title="Zaxira nusxalari" description="Ish joyingizni saqlash va ko‘chirish."><BackupPanel state={workspaceState} onRestore={restoreWorkspace}/></Modal>
   {shared}
  </div>;
 
  const section=sectionOf(tab);
+ const reviewCount=(id:string)=>docs.filter(d=>d.company===id&&!d.demo&&d.status==='review_required').length;
+ const attentionTotal=mine.reduce((n:number,c:any)=>n+reviewCount(c.id),0);
  const closedNow=!!company&&closed.includes(`${company.id}:${period}`);
  const permanentCount=company?docs.filter(d=>d.company===company.id&&d.scope==='permanent'&&(showSampleDocs||!d.demo)).length:0;
  const history=company?companyHistory(activity,company):[];
@@ -157,63 +168,47 @@ function App({saved,session,logout}:any){
   <a className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground" href="#main-content" onClick={e=>{e.preventDefault();document.getElementById('main-content')?.focus()}}>Asosiy mazmunga o‘tish</a>
 
   <Sidebar variant="inset" collapsible="offcanvas"><div role="navigation" aria-label="Asosiy menyu" className="contents">
-   <SidebarHeader>
-    <SidebarMenu><SidebarMenuItem><SidebarMenuButton size="lg" asChild><a href="#dashboard" aria-label="Hisobkor.uz bosh sahifasi"><img src="/brand-h.png" width="28" height="28" alt="" className="size-7 shrink-0 object-contain"/><span className="text-base font-semibold tracking-tight">hisobkor<span className="font-normal text-muted-foreground">.uz</span></span></a></SidebarMenuButton></SidebarMenuItem></SidebarMenu>
+   <SidebarHeader className="gap-3 px-3 pt-4">
+    <a href="#dashboard" aria-label="Hisobkor.uz bosh sahifasi" className="flex items-center gap-2.5 rounded-lg px-1.5 py-1 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"><img src="/brand-h.png" width="28" height="28" alt="" className="size-7 shrink-0 object-contain"/><span className="text-[1.0625rem] font-semibold tracking-tight">hisobkor<span className="font-normal text-sidebar-muted">.uz</span></span></a>
+    <Button onClick={()=>open({type:'upload',pick:!company})} disabled={!mine.length&&!company} className="h-10 w-full justify-start gap-2 bg-sidebar-primary font-semibold text-sidebar-primary-foreground hover:bg-sidebar-primary/90"><Icon name="upload"/>Hujjat yuklash</Button>
    </SidebarHeader>
-   <SidebarContent>
+   <SidebarContent className="gap-0">
     <SidebarGroup><SidebarGroupContent><SidebarMenu aria-label="Asosiy">
-     <SidebarMenuItem><SidebarMenuButton isActive={!company&&!isMsfo} aria-current={company||isMsfo?undefined:'page'} onClick={()=>go('dashboard')}><Icon name="dashboard"/><span>Bosh sahifa</span></SidebarMenuButton></SidebarMenuItem>
+     <SidebarMenuItem><SidebarMenuButton isActive={!company&&!isMsfo} aria-current={company||isMsfo?undefined:'page'} onClick={()=>go('dashboard')}><Icon name="dashboard"/><span>Bosh sahifa</span>{attentionTotal>0&&<span className="ml-auto rounded-full bg-amber-400/90 px-1.5 text-xs font-semibold text-amber-950 tabular-nums">{attentionTotal}</span>}</SidebarMenuButton></SidebarMenuItem>
      <SidebarMenuItem><SidebarMenuButton isActive={isMsfo} aria-current={isMsfo?'page':undefined} onClick={()=>go('msfo')}><Icon name="msfo"/><span>MSFO hujjatlari</span></SidebarMenuButton></SidebarMenuItem>
     </SidebarMenu></SidebarGroupContent></SidebarGroup>
 
-    <SidebarGroup>
-     <SidebarGroupLabel>Kompaniya</SidebarGroupLabel>
-     <SidebarGroupContent className="flex flex-col gap-2">
-      <SidebarMenu><SidebarMenuItem>
-       <Dropdown.DropdownMenu modal={false}>
-        <Dropdown.DropdownMenuTrigger asChild>
-         <SidebarMenuButton size="lg" className="border bg-background shadow-xs data-[state=open]:bg-sidebar-accent" aria-label={company?`Kompaniyani almashtirish: ${company.name}`:'Kompaniya tanlash'}>
-          {company?<InitialsTile name={company.name} size="sm"/>:<span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Icon name="company"/></span>}
-          <span className="grid flex-1 text-left text-sm leading-tight"><span className="truncate font-medium">{company?.name||'Kompaniya tanlash'}</span><span className="truncate text-xs text-muted-foreground tabular-nums">{company?(company.stir?`STIR ${company.stir}`:(company.legal||'MChJ')):`${mine.length} ta kompaniya`}</span></span>
-          <Icon name="switch" className="ml-auto text-muted-foreground"/>
-         </SidebarMenuButton>
-        </Dropdown.DropdownMenuTrigger>
-        <Dropdown.DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) min-w-60 rounded-lg" align="start" sideOffset={4} collisionPadding={12} onCloseAutoFocus={e=>{if(modal)e.preventDefault()}}>
-         <Dropdown.DropdownMenuLabel className="text-xs text-muted-foreground">Kompaniyalar</Dropdown.DropdownMenuLabel>
-         <div className="max-h-72 overflow-y-auto">
-          {(company?.isDemo?[...mine,company]:mine).map(c=><Dropdown.DropdownMenuItem key={c.id} className="gap-2 p-2" onSelect={()=>go(`company/${c.id}/overview`)}>
-           <InitialsTile name={c.name} size="sm" className="size-7 rounded-md"/>
-           <span className="grid flex-1 leading-tight"><span className="truncate">{c.name}</span><span className="truncate text-xs text-muted-foreground tabular-nums">{c.isDemo?'Namuna kompaniya':c.stir?`STIR ${c.stir}`:(c.legal||'Kompaniya')}</span></span>
-           {company?.id===c.id&&<Icon name="check" className="text-primary"/>}
-          </Dropdown.DropdownMenuItem>)}
-          {!mine.length&&!company&&<p className="px-2 py-3 text-sm text-muted-foreground">Hali kompaniya qo‘shilmagan</p>}
-         </div>
-         <Dropdown.DropdownMenuSeparator/>
-         <Dropdown.DropdownMenuItem className="gap-2 p-2" onSelect={()=>open({type:'company'})}><span className="flex size-7 items-center justify-center rounded-md border bg-transparent"><Icon name="plus"/></span><span className="font-medium text-muted-foreground">Kompaniya qo‘shish</span></Dropdown.DropdownMenuItem>
-        </Dropdown.DropdownMenuContent>
-       </Dropdown.DropdownMenu>
-      </SidebarMenuItem></SidebarMenu>
-      {company&&<SidebarMenu aria-label="Kompaniya bo‘limlari">{sections.map(([id,label,icon])=><SidebarMenuItem key={id}><SidebarMenuButton isActive={section===id} aria-current={section===id?'page':undefined} onClick={()=>go(`company/${company.id}/${id}`)}><Icon name={icon}/><span>{label}</span></SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu>}
+    <SidebarGroup className="min-h-0 flex-1">
+     <SidebarGroupLabel className="text-sidebar-muted">Kompaniyalar<span className="ml-1.5 tabular-nums opacity-80">{mine.length}</span></SidebarGroupLabel>
+     <button type="button" onClick={()=>open({type:'company'})} aria-label="Kompaniya qo‘shish" title="Kompaniya qo‘shish" className="absolute top-3.5 right-3 flex size-6 items-center justify-center rounded-md text-sidebar-muted outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"><Icon name="plus" size={16}/></button>
+     <SidebarGroupContent className="flex min-h-0 flex-col gap-2">
+      {mine.length>6&&<label className="relative block px-0.5"><span className="sr-only">Kompaniya qidirish</span><Icon name="search" size={14} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sidebar-muted"/><input value={companyQuery} onChange={e=>setCompanyQuery(e.target.value)} placeholder="Qidirish…" className="h-8 w-full rounded-md border border-sidebar-border bg-sidebar-accent/60 pr-2 pl-8 text-sm text-sidebar-foreground outline-none placeholder:text-sidebar-muted focus-visible:ring-2 focus-visible:ring-sidebar-ring"/></label>}
+      <SidebarMenu aria-label="Kompaniyalar ro‘yxati">{(company?.isDemo?[...mine,company]:mine).filter(c=>`${c.name} ${c.stir||''}`.toLowerCase().includes(companyQuery.toLowerCase())).map(c=>{const n=reviewCount(c.id);const active=company?.id===c.id;return <SidebarMenuItem key={c.id}><SidebarMenuButton size="lg" isActive={active} aria-current={active?'page':undefined} onClick={()=>go(`company/${c.id}/overview`)} className="h-11 data-[active=true]:bg-sidebar-accent">
+        <span aria-hidden="true" className={cn('flex size-7 shrink-0 items-center justify-center rounded-md text-[0.6875rem] font-semibold',active?'bg-sidebar-primary text-sidebar-primary-foreground':'bg-sidebar-accent text-sidebar-foreground')}>{initials(c.name)}</span>
+        <span className="grid flex-1 text-left leading-tight"><span className="truncate text-sm font-medium">{c.name}</span><span className="truncate text-xs text-sidebar-muted tabular-nums">{c.isDemo?'Namuna':c.stir?`STIR ${c.stir}`:(c.legal||'Kompaniya')}</span></span>
+        {n>0&&<span className="rounded-full bg-amber-400/90 px-1.5 text-xs font-semibold text-amber-950 tabular-nums" aria-label={`${n} ta hujjat tekshiruvni kutmoqda`}>{n}</span>}
+       </SidebarMenuButton></SidebarMenuItem>})}</SidebarMenu>
+      {!mine.length&&<button type="button" onClick={()=>open({type:'company'})} className="mx-0.5 flex items-center gap-2 rounded-lg border border-dashed border-sidebar-border px-3 py-3 text-left text-sm text-sidebar-muted outline-none hover:border-sidebar-primary hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"><Icon name="plus" size={16}/>Birinchi kompaniyani qo‘shing</button>}
      </SidebarGroupContent>
     </SidebarGroup>
 
-    <SidebarGroup className="mt-auto"><SidebarGroupContent><SidebarMenu aria-label="Qo‘shimcha">
-     <SidebarMenuItem><SidebarMenuButton onClick={()=>open({type:'backup'})}><Icon name="download"/><span>Zaxira nusxalari</span></SidebarMenuButton></SidebarMenuItem>
-     <SidebarMenuItem><SidebarMenuButton onClick={()=>open({type:'help'})}><Icon name="help"/><span>Yordam</span></SidebarMenuButton></SidebarMenuItem>
+    <SidebarGroup><SidebarGroupContent><SidebarMenu aria-label="Qo‘shimcha">
+     <SidebarMenuItem><SidebarMenuButton className="text-sidebar-muted" onClick={()=>open({type:'backup'})}><Icon name="download"/><span>Zaxira nusxalari</span></SidebarMenuButton></SidebarMenuItem>
+     <SidebarMenuItem><SidebarMenuButton className="text-sidebar-muted" onClick={()=>open({type:'help'})}><Icon name="help"/><span>Yordam</span></SidebarMenuButton></SidebarMenuItem>
     </SidebarMenu></SidebarGroupContent></SidebarGroup>
    </SidebarContent>
-   <SidebarFooter>
+   <SidebarFooter className="border-t border-sidebar-border">
     <SidebarMenu><SidebarMenuItem>
      <Dropdown.DropdownMenu modal={false}>
       <Dropdown.DropdownMenuTrigger asChild>
        <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent" aria-label="Hisob menyusi">
-        <Avatar className="size-8 rounded-lg"><AvatarFallback className="rounded-lg text-xs font-medium">{initials(profile.fullName)}</AvatarFallback></Avatar>
-        <span className="grid flex-1 text-left text-sm leading-tight"><span className="truncate font-medium">{profile.fullName}</span><span className="truncate text-xs text-muted-foreground">{profile.workspace||'Buxgalter'}</span></span>
-        <Icon name="switch" className="ml-auto text-muted-foreground"/>
+        <Avatar className="size-8 rounded-full"><AvatarFallback className="rounded-full bg-sidebar-accent text-xs font-semibold text-sidebar-foreground">{initials(profile.fullName)}</AvatarFallback></Avatar>
+        <span className="grid flex-1 text-left text-sm leading-tight"><span className="truncate font-medium">{profile.fullName}</span><span className="truncate text-xs text-sidebar-muted">{profile.workspace||'Buxgalter'}</span></span>
+        <Icon name="switch" className="ml-auto text-sidebar-muted"/>
        </SidebarMenuButton>
       </Dropdown.DropdownMenuTrigger>
       <Dropdown.DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg" side="top" align="start" sideOffset={4} collisionPadding={12} onCloseAutoFocus={e=>{if(modal)e.preventDefault()}}>
-       <Dropdown.DropdownMenuLabel className="p-0 font-normal"><span className="flex items-center gap-2 px-1 py-1.5 text-left text-sm"><Avatar className="size-8 rounded-lg"><AvatarFallback className="rounded-lg text-xs font-medium">{initials(profile.fullName)}</AvatarFallback></Avatar><span className="grid flex-1 leading-tight"><span className="truncate font-medium">{profile.fullName}</span><span className="truncate text-xs text-muted-foreground">{profile.phone}</span></span></span></Dropdown.DropdownMenuLabel>
+       <Dropdown.DropdownMenuLabel className="p-0 font-normal"><span className="flex items-center gap-2 px-1 py-1.5 text-left text-sm"><Avatar className="size-8 rounded-full"><AvatarFallback className="rounded-full text-xs font-medium">{initials(profile.fullName)}</AvatarFallback></Avatar><span className="grid flex-1 leading-tight"><span className="truncate font-medium">{profile.fullName}</span><span className="truncate text-xs text-muted-foreground">{profile.phone}</span></span></span></Dropdown.DropdownMenuLabel>
        <Dropdown.DropdownMenuSeparator/>
        <Dropdown.DropdownMenuItem onSelect={()=>open({type:'profile'})}><Icon name="settings"/>Profilni tahrirlash</Dropdown.DropdownMenuItem>
        {session.mode==='production'&&<><Dropdown.DropdownMenuSeparator/><Dropdown.DropdownMenuItem onSelect={()=>open({type:'logout'})}><Icon name="logout"/>Chiqish</Dropdown.DropdownMenuItem></>}
@@ -224,7 +219,7 @@ function App({saved,session,logout}:any){
   </div></Sidebar>
 
   <SidebarInset className="min-w-0">
-   <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 lg:px-6">
+   <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-4 backdrop-blur lg:rounded-t-xl lg:px-8">
     <Tooltip><TooltipTrigger asChild><SidebarTrigger data-slot="sidebar-trigger" className="-ml-1" aria-label="Menyu"/></TooltipTrigger><TooltipContent>Menyu</TooltipContent></Tooltip>
     <Separator orientation="vertical" className="mx-1 data-[orientation=vertical]:h-4"/>
     <Breadcrumb className="min-w-0" aria-label="Sahifa yo‘li"><BreadcrumbList className="flex-nowrap">
@@ -233,30 +228,36 @@ function App({saved,session,logout}:any){
      {company&&<><BreadcrumbSeparator className="max-sm:hidden"/><BreadcrumbItem className="min-w-0"><BreadcrumbLink className="truncate" href={`#company/${company.id}/overview`}>{company.name}</BreadcrumbLink></BreadcrumbItem><BreadcrumbSeparator className="max-md:hidden"/><BreadcrumbItem className="max-md:hidden"><BreadcrumbPage>{sections.find(t=>t[0]===section)?.[1]}</BreadcrumbPage></BreadcrumbItem></>}
     </BreadcrumbList></Breadcrumb>
     <div className="ml-auto flex items-center gap-1">
-     <UiBadge variant="outline" role="status" className={cn('gap-1.5 text-muted-foreground',saveStatus==='error'&&'border-red-200 bg-red-50 text-red-700')}>{saveStatus==='saving'?<Spinner/>:<Icon name={saveStatus==='error'?'alert':'check'} className={saveStatus==='error'?'':'text-emerald-600'}/>}{saveStatus==='error'?'Saqlanmadi':saveStatus==='saving'?'Saqlanmoqda…':'Saqlandi'}</UiBadge>
+     <span role="status" className={cn('inline-flex items-center gap-1.5 px-2 text-xs text-muted-foreground',saveStatus==='error'&&'font-medium text-destructive')}>{saveStatus==='saving'?<Spinner className="size-3"/>:<span aria-hidden="true" className={cn('size-2 rounded-full',saveStatus==='error'?'bg-destructive':'bg-emerald-500')}/>}<span className={saveStatus==='saved'?'max-sm:sr-only':''}>{saveStatus==='error'?'Saqlanmadi':saveStatus==='saving'?'Saqlanmoqda…':'Saqlandi'}</span></span>
      <Tooltip><TooltipTrigger asChild><Button data-slot="button" variant="ghost" size="icon" aria-label="Yordam" onClick={()=>open({type:'help'})}><Icon name="help"/></Button></TooltipTrigger><TooltipContent>Yordam: ish tartibi haqida qisqacha</TooltipContent></Tooltip>
     </div>
    </header>
 
-   <div id="main-content" tabIndex={-1} className={cn("mx-auto flex w-full min-w-0",msfoItem?"max-w-[90rem]":"max-w-6xl","flex-1 flex-col gap-4 p-4 outline-none max-lg:pb-24 lg:gap-6 lg:p-6")}>
+   <div id="main-content" tabIndex={-1} className={cn("mx-auto flex w-full min-w-0",msfoItem?"max-w-[90rem]":"max-w-6xl","flex-1 flex-col gap-5 p-4 outline-none max-lg:pb-24 lg:gap-7 lg:px-8 lg:py-8")}>
 {isMsfo?<MsfoPage items={msfo} setItems={setMsfo} companies={companies} route={route} go={go} aiConnected={!!ai.connection.connected} aiLoading={!!ai.connection.loading} aiConsent={aiAuto} setAiConsent={setAiAuto}/>:!company?<>
     <WorkspaceHome companies={companies} docs={docs} period={period} profile={profile} onPeriod={(value:string)=>setPeriod(value)} onOpenCompany={(id:string)=>go(`company/${id}/overview`)} onReview={reviewDocument} onUpload={()=>open({type:'upload',pick:true})} onAddCompany={()=>open({type:'company'})} banner={mine.length===0&&<Card><CardHeader><CardDescription>2 / 3 · Kompaniya qo‘shish</CardDescription><CardTitle>Profilingiz tayyor</CardTitle><CardDescription>Endi birinchi mijoz tashkilotini qo‘shing, so‘ng uning hujjatlarini yuklaysiz.</CardDescription></CardHeader><CardContent><ol role="list" className="flex flex-wrap gap-x-6 gap-y-2 text-sm">{['Profil to‘ldirildi','Kompaniya qo‘shish','Hujjat yuklash va tekshirish'].map((label,i)=><li key={label} className={cn('flex items-center gap-2',i===1?'font-medium':'text-muted-foreground')}><span className={cn('flex size-6 items-center justify-center rounded-full border text-xs tabular-nums',i===0&&'border-emerald-200 bg-emerald-50 text-emerald-700',i===1&&'border-primary bg-primary text-primary-foreground')}>{i===0?<Icon name="check" size={14}/>:i+1}</span>{label}</li>)}</ol></CardContent></Card>}/>
-    <Card className="gap-0 py-0"><a href="#msfo" className="flex items-center gap-4 rounded-xl p-4 outline-none hover:bg-muted/40 focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:px-6">
-     <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon name="msfo"/></span>
-     <span className="grid min-w-0 flex-1 gap-0.5"><span className="flex flex-wrap items-center gap-2 font-medium">MSFO redaktori<UiBadge variant="secondary">Yangi</UiBadge></span><span className="text-sm text-pretty text-muted-foreground">Word hujjatini AI yordamida MSFO (IFRS) shakliga o‘tkazing, tahrirlang va .docx qilib yuklab oling.{msfo.length?` · ${msfo.length} ta hujjat`:''}</span></span>
-     <Icon name="chevron" className="shrink-0 text-muted-foreground"/>
-    </a></Card>
+    <a href="#msfo" className="group/msfo flex items-center gap-4 rounded-2xl border border-dashed border-primary/30 bg-accent/50 p-4 outline-none hover:border-primary/60 hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:px-6">
+     <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Icon name="msfo"/></span>
+     <span className="grid min-w-0 flex-1 gap-0.5"><span className="flex flex-wrap items-center gap-2 font-medium">MSFO redaktori<span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Yangi</span></span><span className="text-sm text-pretty text-muted-foreground">PDF yoki Word hisobotni AI yordamida MSFO (IFRS) shakliga o‘tkazing va .docx qilib oling.{msfo.length?` · ${msfo.length} ta hujjat`:''}</span></span>
+     <Icon name="arrow" className="shrink-0 text-primary transition-transform group-hover/msfo:translate-x-0.5"/>
+    </a>
     {examples.length>0&&<Collapsible open={showExamples} onOpenChange={setShowExamples} className="flex flex-col gap-3"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="group/trigger self-start text-muted-foreground"><Icon name="folder"/>Avvalgi namuna kompaniyalar ({examples.length})<Icon name="down" className="transition-transform group-data-[state=open]/trigger:rotate-180"/></Button></CollapsibleTrigger><CollapsibleContent className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">Oldingi preview ma’lumotlari saqlangan. Bu kompaniyalar namuna uchun.</p><div className="grid gap-3 md:grid-cols-2">{examples.map(c=><CompanyCard key={c.id} c={c} docs={docs} onOpen={()=>go(`company/${c.id}/overview`)}/>)}</div></CollapsibleContent></Collapsible>}
     <p className="flex items-start gap-2 text-sm text-muted-foreground"><Icon name="shield" size={16} className="mt-0.5 shrink-0"/>Har bir kompaniyaning hujjatlari, qarorlari va tarixi alohida saqlanadi.</p>
 </>:<>
-    <PageHeader media={section==='overview'?<InitialsTile name={company.name} size="lg"/>:undefined}
-     title={section==='overview'?companyTitle(company):sections.find(t=>t[0]===section)?.[1]||'Kompaniya'}
-     description={section==='overview'?`${company.stir?'STIR '+company.stir:'STIR kiritilmagan'} · ${month(period)}`:section==='documents'?'Oylik hujjatlar davr bo‘yicha yuritiladi, doimiy hujjatlar (ustav, guvohnoma, shartnoma) esa kompaniyada qoladi.':section==='history'?'Kim, qachon va qaysi hujjat bo‘yicha qaror qabul qilgani.':'Kompaniya rekvizitlari va mas’ul shaxslar.'}
-     actions={<>
-      {(section==='overview'||tab==='documents')&&<PeriodPicker value={period} min="2000-01" max="2100-12" onChange={(value:string)=>{setPeriod(value);setFilter('all')}}/>}
-      {(section==='overview'||section==='documents')&&<Button variant={section==='overview'?'outline':'default'} onClick={()=>open({type:'upload'})}><Icon name="upload"/>Hujjat yuklash</Button>}
-      <Button variant="outline" aria-label={`AI tahlil${aiPending?`: ${aiPending} ta hujjat tekshirilmoqda`:''}`} onClick={()=>setAiOpen(true)}><Icon name="spark"/>AI tahlil{aiPending>0&&<UiBadge role="status" className="h-5 min-w-5 rounded-full px-1 tabular-nums">{aiPending}</UiBadge>}</Button>
-     </>}/>
+    <header className="flex flex-col gap-5">
+     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex min-w-0 items-center gap-4">
+       <InitialsTile name={company.name} size="lg" className="size-12 rounded-2xl bg-primary text-lg text-primary-foreground"/>
+       <div className="min-w-0"><h1 className="text-2xl font-semibold tracking-tight text-balance [overflow-wrap:anywhere] lg:text-[1.75rem]">{companyTitle(company)}</h1><p className="mt-0.5 text-sm text-muted-foreground tabular-nums">{[company.legal,company.stir?'STIR '+company.stir:'STIR kiritilmagan'].filter(Boolean).join(' · ')}</p></div>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+       {(section==='overview'||tab==='documents')&&<PeriodPicker value={period} min="2000-01" max="2100-12" onChange={(value:string)=>{setPeriod(value);setFilter('all')}}/>}
+       <Button variant="outline" aria-label={`AI tahlil${aiPending?`: ${aiPending} ta hujjat tekshirilmoqda`:''}`} onClick={()=>setAiOpen(true)}><Icon name="spark"/>AI tahlil{aiPending>0&&<UiBadge role="status" className="h-5 min-w-5 rounded-full px-1 tabular-nums">{aiPending}</UiBadge>}</Button>
+       <Button onClick={()=>open({type:'upload'})}><Icon name="upload"/>Hujjat yuklash</Button>
+      </div>
+     </div>
+     <nav aria-label="Kompaniya bo‘limlari" className="-mx-4 flex gap-1 overflow-x-auto border-b px-4 max-lg:hidden lg:mx-0 lg:px-0">{sections.map(([id,label,icon])=><a key={id} href={`#company/${company.id}/${id}`} aria-current={section===id?'page':undefined} className={cn('relative -mb-px flex h-10 shrink-0 items-center gap-2 border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50',section===id&&'border-primary text-foreground')}><Icon name={icon} size={16}/>{label}{id==='documents'&&stats.review>0&&<span className="rounded-full bg-amber-100 px-1.5 text-xs font-semibold text-amber-800 tabular-nums">{stats.review}</span>}</a>)}</nav>
+    </header>
 
 {section==='overview'&&<CompanyOverview company={company} docs={docs} period={period} closed={closed} onNavigate={(target:string)=>go(`company/${company.id}/${target}`)} onOpen={showDocument} onUpload={()=>open({type:'upload'})} onFilter={(value:string)=>{nextFilter.current=value;go(`company/${company.id}/documents`)}}/>}
 
@@ -281,15 +282,15 @@ function App({saved,session,logout}:any){
       </div>}
       {visible.length?<div className="overflow-hidden rounded-lg border"><Table>
        <TableCaption className="sr-only">{company.name} hujjatlari</TableCaption>
-       <TableHeader className="bg-muted"><TableRow><TableHead scope="col">Hujjat</TableHead><TableHead scope="col" className="max-md:hidden">Sana</TableHead><TableHead scope="col" className="max-sm:hidden">Holat</TableHead><TableHead scope="col" className="max-lg:hidden">Avto tekshiruv</TableHead><TableHead scope="col" className="max-sm:hidden"><span className="sr-only">Amal</span></TableHead></TableRow></TableHeader>
+       <TableHeader className="bg-muted"><TableRow><TableHead scope="col">Hujjat</TableHead><TableHead scope="col" className="max-md:hidden">Sana</TableHead><TableHead scope="col" className="max-sm:hidden">Holat</TableHead>{showAi&&<TableHead scope="col" className="max-lg:hidden">AI tekshiruv</TableHead>}<TableHead scope="col" className="max-sm:hidden"><span className="sr-only">Amal</span></TableHead></TableRow></TableHeader>
        <TableBody>{pageDocs.map(d=><TableRow key={d.id}>
         <TableCell className="whitespace-normal"><button type="button" className="flex w-full min-w-36 items-center gap-3 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" onClick={()=>showDocument(d)}>
-         {d.status==='missing'?<FileTile label="TALAB" className="border-amber-200 bg-amber-50 text-[0.625rem] text-amber-700"/>:<FileTile fileName={d.fileName}/>}
+         {d.status==='missing'?<span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-amber-400 bg-amber-50 text-amber-700"><Icon name="clock" size={16}/></span>:<FileTile fileName={d.fileName}/>}
          <span className="flex min-w-0 flex-col"><span className="font-medium [overflow-wrap:anywhere]">{documentName(d)}</span><span className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{d.demo?'Namuna hujjati':d.status==='missing'?'Fayl kutilmoqda':`${d.fileName?.split('.').pop()?.toUpperCase()||'Fayl'} · ${d.size}`}{d.reason?` · ${d.reason}`:''}</span><Badge status={d.status} className="mt-1.5 sm:hidden"/></span>
         </button></TableCell>
         <TableCell className="text-muted-foreground tabular-nums max-md:hidden"><time dateTime={d.date||undefined}>{formatDate(d.date)||'—'}</time></TableCell>
         <TableCell className="max-sm:hidden"><Badge status={d.status}/></TableCell>
-        <TableCell className="max-lg:hidden">{eligible(d)?<AIBadge doc={d}/>:<span className="text-sm text-muted-foreground">{d.demo?'Namuna':'—'}</span>}</TableCell>
+        {showAi&&<TableCell className="max-lg:hidden">{eligible(d)&&d.ai?<AIBadge doc={d}/>:<span className="text-sm text-muted-foreground">—</span>}</TableCell>}
         <TableCell className="text-right max-sm:hidden"><Button variant="ghost" size="sm" onClick={()=>showDocument(d)}><span>{d.status==='missing'?'Yuklash':d.status==='review_required'?'Tekshirish':'Ochish'}</span><Icon name="arrow"/></Button></TableCell>
        </TableRow>)}</TableBody>
       </Table></div>

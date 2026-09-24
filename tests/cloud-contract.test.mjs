@@ -173,9 +173,9 @@ test('apex static allowlist serves landing assets and rejects unrelated files', 
     assert.equal(await response.text(), pathname);
   }
   for (const host of ['hisobkor.uz', 'app.hisobkor.uz']) {
-    response = await f.worker.fetch(new Request(`https://${host}/fonts/Geist-latin.woff2`), f.env, f.ctx);
+    response = await f.worker.fetch(new Request(`https://${host}/fonts/Onest-latin.woff2`), f.env, f.ctx);
     assert.equal(response.status, 200);
-    assert.equal(await response.text(), '/fonts/Geist-latin.woff2');
+    assert.equal(await response.text(), '/fonts/Onest-latin.woff2');
   }
   response = await f.worker.fetch(new Request('https://hisobkor.uz/app.js'), f.env, f.ctx);
   assert.equal(response.status, 404);

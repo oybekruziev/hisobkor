@@ -10,8 +10,10 @@ export function InitialsTile({name, size = 'md', className}: {name: string; size
 }
 
 /** File-type chip: PDF / XLS / CSV / IMG, so a list scans by shape. */
+const kindTones: Record<string, string> = {PDF: 'bg-rose-50 text-rose-700 ring-rose-200', XLS: 'bg-emerald-50 text-emerald-700 ring-emerald-200', CSV: 'bg-teal-50 text-teal-700 ring-teal-200', IMG: 'bg-sky-50 text-sky-700 ring-sky-200'};
 export function FileTile({fileName, label, className}: {fileName?: string; label?: string; className?: string}) {
-  return <span aria-hidden="true" className={cn('flex size-9 shrink-0 items-center justify-center rounded-md border bg-muted text-[0.6875rem] font-semibold tracking-wide text-muted-foreground', className)}>{label || fileKind(fileName)}</span>;
+  const kind = label || fileKind(fileName);
+  return <span aria-hidden="true" className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg text-[0.625rem] font-bold tracking-wide ring-1 ring-inset', kindTones[kind] || 'bg-muted text-muted-foreground ring-border', className)}>{kind}</span>;
 }
 
 const iconTones: Record<string, string> = {
