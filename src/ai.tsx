@@ -1,3 +1,4 @@
+import {Character} from './components/Character';
 import {Card,CardHeader,CardTitle,CardDescription,CardAction,CardContent} from './components/ui/card';
 import {Alert,AlertTitle,AlertDescription} from './components/ui/alert';
 import {Badge as UiBadge} from './components/ui/badge';
@@ -11,7 +12,7 @@ import {Button} from './components/ui/button';
 import {Icon} from './Icon';
 import {AiConsent} from './components/app/AiConsent';
 import {getFile} from './storage';
-import {eligible,version,validAnalysis,reviewFindings,issueTone} from './ai-domain.mjs';
+import {eligible,version,validAnalysis,reviewFindings,issueTone,analysisState,analysisLabels} from './ai-domain.mjs';
 
 async function api(path:string,body?:any){
  const response=await fetch('/api/ai/'+path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-Mezon-Request':'1'},body:JSON.stringify(body)});
@@ -92,21 +93,19 @@ const kinds:any={invoice:'Schyot-faktura',contract:'Shartnoma',bank_statement:'B
 
 /** One vocabulary for AI findings: red = values disagree, amber = check by hand, blue = context. */
 const tones:any={
- conflict:{label:'Ziddiyat',icon:'alert',box:'border-danger/25 bg-danger/10/60',bar:'bg-danger/100',text:'text-danger'},
- warning:{label:'Tekshiring',icon:'help',box:'border-warning/40 bg-warning/10/60',bar:'bg-warning/100',text:'text-warning'},
- info:{label:'Ma’lumot',icon:'check',box:'border-border bg-muted/40',bar:'bg-accent0',text:'text-accent-foreground'},
+ conflict:{label:'Ziddiyat',icon:'alert',box:'border-danger/25 bg-danger/5',bar:'bg-danger',text:'text-danger'},
+ warning:{label:'Tekshiring',icon:'help',box:'border-warning/40 bg-warning/5',bar:'bg-warning',text:'text-warning-ink'},
+ info:{label:'Ma’lumot',icon:'check',box:'border-border bg-muted/40',bar:'bg-primary',text:'text-accent-foreground'},
 };
 
 export function AIBadge({doc}:any){
- if(!eligible(doc))return null;const status=doc.ai?.status;
- const ready=status==='complete'&&validAnalysis(doc);
- const issues=ready?doc.ai.result.issues:[];
- const conflict=issues.some((x:any)=>issueTone(x)==='conflict');
- const state=ready?(conflict?'conflict':issues.length?'issues':'clear'):status==='processing'||status==='queued'?'pending':status==='error'?'error':'idle';
- const text={conflict:'Ziddiyat topildi',issues:'Izohlar bor',clear:'Izohsiz',pending:status==='queued'?'Navbatda':'Tekshirilmoqda…',error:'Tekshiruv xatosi',idle:'Tekshirilmagan'}[state];
- const tone={conflict:toneClasses.conflict,issues:toneClasses.warning,clear:toneClasses.success,pending:toneClasses.info,error:toneClasses.issue,idle:toneClasses.neutral}[state];
- if(state==='idle')return <span className="text-sm text-muted-foreground" data-ai={state}>{text}</span>;
- return <UiBadge variant="outline" className={tone} data-ai={state}>{state==='pending'?<Spinner/>:<Icon name={state==='conflict'||state==='error'?'alert':state==='clear'?'check':'spark'}/>}{text}</UiBadge>;
+ const state=analysisState(doc);
+ if(state==='none')return null;
+ const conflict=state==='needs_review'&&doc.ai.result.issues.some((x:any)=>issueTone(x)==='conflict');
+ const text=conflict?'Ziddiyat topildi':analysisLabels[state];
+ const tone=conflict?toneClasses.conflict:({needs_review:toneClasses.warning,completed:toneClasses.success,queued:toneClasses.info,processing:toneClasses.info,failed:toneClasses.issue,unsupported:toneClasses.neutral,not_started:toneClasses.neutral} as any)[state];
+ const icon=conflict||state==='failed'?'alert':state==='completed'?'check':state==='unsupported'?'close':state==='not_started'?'clock':'spark';
+ return <UiBadge variant="outline" className={cn('rounded-full',tone)} data-ai={state} title={state==='failed'?doc.ai?.error:undefined}>{state==='queued'||state==='processing'?<Spinner/>:<Icon name={icon}/>}{text}</UiBadge>;
 }
 
 export function AIBar({ai,docs}:any){
@@ -126,7 +125,7 @@ export function AIBar({ai,docs}:any){
 }
 
 /** One finding: coloured rail, a tone chip, the claim, the quoted evidence, then the next step. */
-function Finding({tone,title,detail,evidence,action,children}:any){
+function Finding({tone,title,detail,evidence,location,action,children}:any){
  const t=tones[tone]||tones.warning;
  return <li className={cn('relative overflow-hidden rounded-lg border py-3 pr-3 pl-4',t.box)}>
   <span aria-hidden="true" className={cn('absolute inset-y-0 left-0 w-1',t.bar)}/>
@@ -135,7 +134,7 @@ function Finding({tone,title,detail,evidence,action,children}:any){
    <span className={cn('inline-flex shrink-0 items-center gap-1 text-xs font-medium',t.text)}><Icon name={t.icon} size={14}/>{t.label}</span>
   </div>
   <p className="mt-1 text-sm text-pretty text-foreground/80 [overflow-wrap:anywhere]">{detail}</p>
-  {evidence&&<blockquote className="mt-2 border-l-2 border-foreground/15 pl-3 text-sm text-muted-foreground italic [overflow-wrap:anywhere]">{evidence}</blockquote>}
+  {evidence&&<blockquote className="mt-2 border-l-2 border-foreground/15 pl-3 text-sm text-muted-foreground italic [overflow-wrap:anywhere]">{evidence}{location&&<span className="ml-1 not-italic font-medium text-foreground">· {location}</span>}</blockquote>}
   {action&&<p className="mt-2 flex items-start gap-2 rounded-md bg-background/80 px-2.5 py-2 text-sm [overflow-wrap:anywhere]"><Icon name="arrow" size={14} className="mt-0.5 shrink-0 text-primary"/><span><span className="font-medium">Keyingi qadam: </span>{action}</span></p>}
   {children}
  </li>;
@@ -183,7 +182,7 @@ export function AIReview({doc,docs,company,ai,onRelated}:any){
     <CollapsibleTrigger asChild><Button variant="ghost" className="group/trigger w-full justify-between rounded-lg px-3">Tahlil chegaralari<span className="ml-auto text-muted-foreground tabular-nums">{r.limitations.length}</span><Icon name="down" className="text-muted-foreground transition-transform group-data-[state=open]/trigger:rotate-180"/></Button></CollapsibleTrigger>
     <CollapsibleContent className="border-t px-3 py-3"><ul className="flex list-disc flex-col gap-1.5 pl-5 text-sm text-muted-foreground">{r.limitations.map((x:string,i:number)=><li key={i} className="[overflow-wrap:anywhere]">{x}</li>)}</ul></CollapsibleContent>
    </Collapsible>}
-  </>:<Alert role="status" className={doc.ai?.status==='error'?toneClasses.issue:undefined}>{pending?<Spinner/>:<Icon name={doc.ai?.status==='error'?'alert':'spark'}/>}<AlertDescription className={doc.ai?.status==='error'?'text-danger':undefined}>{doc.ai?.status==='error'?doc.ai.error:pending?(ai.connection.background?'Tekshiruv fonda davom etmoqda. Bu oynani yopishingiz mumkin.':'Tekshiruv davom etmoqda. Jarayon tugaguncha sahifani ochiq qoldiring.'):'Hujjat hali avtomatik tekshirilmagan.'}</AlertDescription></Alert>}
+  </>:pending?<div role="status" className="flex items-center gap-4 rounded-xl border bg-accent/40 p-3"><Character pose="thinking" width={88}/><div className="min-w-0 text-sm"><p className="font-medium">{doc.ai?.status==='queued'?'Navbatda':'Tahlil qilinmoqda'}</p><p className="truncate text-muted-foreground">{doc.fileName}</p><p className="text-muted-foreground">{ai.connection.background?'Tekshiruv fonda davom etadi — oynani yopishingiz mumkin.':'Jarayon tugaguncha sahifani ochiq qoldiring.'}</p></div></div>:<Alert role="status" className={doc.ai?.status==='error'?toneClasses.issue:undefined}>{pending?<Spinner/>:<Icon name={doc.ai?.status==='error'?'alert':'spark'}/>}<AlertDescription className={doc.ai?.status==='error'?'text-danger':undefined}>{doc.ai?.status==='error'?doc.ai.error:pending?(ai.connection.background?'Tekshiruv fonda davom etmoqda. Bu oynani yopishingiz mumkin.':'Tekshiruv davom etmoqda. Jarayon tugaguncha sahifani ochiq qoldiring.'):'Hujjat hali avtomatik tekshirilmagan.'}</AlertDescription></Alert>}
 
   <div className="flex flex-col gap-2">
    {ai.connection.connected&&!ai.consent?<AiConsent checked={false} onCheckedChange={ai.setConsent}/>:<Button variant="outline" className="w-full" disabled={!ai.ready||pending||ai.running||!ai.connection.connected} onClick={()=>ai.check([doc],!!r||doc.ai?.status==='error')}>{pending?<Spinner/>:<Icon name="spark"/>}{pending?'Tekshirilmoqda…':r?'Qayta tekshirish':ai.connection.connected?'Tekshirish':'Tekshiruv mavjud emas'}</Button>}

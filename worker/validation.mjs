@@ -1,3 +1,4 @@
+import {validateMsfoList, validateMhxsProjects} from '../src/mhxs/validate.mjs';
 export const MAX_WORKSPACE_BYTES = 1024 * 1024;
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 export const FILE_TYPES = new Map([
@@ -48,18 +49,8 @@ export function validateWorkspaceState(state) {
     for (const key of ['email', 'workspace']) if (key in state.profile && !text(state.profile[key], 240, false)) throw new Error('Profil maydoni yaroqsiz.');
   }
   if ('aiAuto' in state && typeof state.aiAuto !== 'boolean') throw new Error('AI sozlamasi yaroqsiz.');
-  if ('msfo' in state) {
-    if (!Array.isArray(state.msfo) || state.msfo.length > 5_000) throw new Error('MSFO ro‘yxati yaroqsiz.');
-    const ids = new Set();
-    for (const item of state.msfo) {
-      if (!item || typeof item !== 'object' || Array.isArray(item) || !validFileId(item.id) || ids.has(item.id) || !text(item.title, 240) || !['statements', 'text'].includes(item.mode)) throw new Error('MSFO hujjati yaroqsiz.');
-      if (item.fileKey != null && !validFileId(item.fileKey)) throw new Error('MSFO fayl kaliti yaroqsiz.');
-      if (item.sourceFileKey != null && !validFileId(item.sourceFileKey)) throw new Error('MSFO manba fayli yaroqsiz.');
-      if (item.job != null && (typeof item.job !== 'object' || !/^resp_[A-Za-z0-9_-]{8,200}$/.test(String(item.job.id)))) throw new Error('MSFO topshirig‘i yaroqsiz.');
-      if (item.companyId != null && !companyIds.has(item.companyId)) throw new Error('MSFO kompaniyasi topilmadi.');
-      ids.add(item.id);
-    }
-  }
+  if ('msfo' in state) validateMsfoList(state.msfo, companyIds);
+  if ('mhxs' in state) validateMhxsProjects(state.mhxs, companyIds);
 }
 
 export function validateFile(bytes, contentType) {

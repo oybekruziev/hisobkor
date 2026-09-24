@@ -1,6 +1,7 @@
 import {randomToken, sha256Hex, verifyPassword, pbkdf2, bytesToHex} from './crypto.mjs';
 import {runMsfo, startMsfo, pollMsfo, validJobId, validateMsfoRequest, MAX_MSFO_BODY, MAX_PDF_BYTES} from '../msfo-service.mjs';
 import {handleAdmin, isAdminUser} from './admin.mjs';
+import {validateChat, companyContext, runChat} from '../chat-service.mjs';
 import {eligibleDocument, MAX_FILE_BYTES, MAX_WORKSPACE_BYTES, safeDocumentName, validFileId, validateFile, validateWorkspaceState} from './validation.mjs';
 
 const SESSION_COOKIE = '__Host-mezon_session';
@@ -176,6 +177,12 @@ async function register(request, env) {
 }
 
 async function getWorkspace(auth, env) {
+  const {state, revision} = await workspaceWithAnalyses(auth, env);
+  return json({state, revision});
+}
+
+/** Workspace state with each document's latest AI analysis merged in (per immutable file version). */
+async function workspaceWithAnalyses(auth, env) {
   const row = await env.DB.prepare('SELECT state_json,revision FROM workspaces WHERE id=? AND account_id=?').bind(auth.workspaceId, auth.accountId).first();
   if (!row) throw new HttpError(503, 'Ish joyi sozlanmagan.');
   const state = parseState(row);
@@ -197,7 +204,7 @@ async function getWorkspace(auth, env) {
       return {...doc, ai};
     });
   }
-  return json({state, revision: Number(row.revision)});
+  return {state, revision: Number(row.revision)};
 }
 
 async function putWorkspace(request, auth, env, ctx) {
@@ -332,9 +339,21 @@ async function getJob(auth, jobId, env) {
  * rewrite of a selection still runs inline. Starting or rewriting counts against a per-account daily
  * budget, and every job id is bound to the account that started it.
  */
+/** Loads this account's workspace and proves the company belongs to it (never trusts the browser). */
+async function workspaceCompany(auth, env, companyId) {
+  if (!validFileId(companyId)) throw new HttpError(400, 'Kompaniya tanlanmagan. MHXS ishi kompaniya ichida bajariladi.');
+  const row = await env.DB.prepare('SELECT state_json,revision FROM workspaces WHERE id=? AND account_id=?').bind(auth.workspaceId, auth.accountId).first();
+  if (!row) throw new HttpError(503, 'Ish joyi sozlanmagan.');
+  const state = parseState(row);
+  const company = state?.companies?.find(c => c.id === companyId);
+  if (!company) throw new HttpError(404, 'Kompaniya bu ish joyida topilmadi.');
+  return {state, company};
+}
+
 async function msfo(request, auth, env) {
   if (!env.OPENAI_API_KEY) throw new HttpError(503, 'AI xizmati sozlanmagan.');
   const body = await readJSON(request, MAX_MSFO_BODY);
+  await workspaceCompany(auth, env, body?.companyId);
   // A PDF the user already stored is read from R2 here instead of being uploaded a second time.
   if (body?.file?.fileKey && !body.file.base64) {
     const key = body.file.fileKey;
@@ -369,6 +388,28 @@ async function msfo(request, auth, env) {
   } catch (error) {
     throw new HttpError(502, error?.name === 'TimeoutError' ? 'AI javobi juda uzoq kechikdi. Qayta urinib ko‘ring.' : (error?.message || 'AI so‘rovi bajarilmadi.'));
   }
+}
+
+/** Company chat: context is built here from this account's workspace, never from the browser. */
+async function chat(request, auth, env) {
+  if (!env.OPENAI_API_KEY) throw new HttpError(503, 'AI xizmati sozlanmagan.');
+  const body = await readJSON(request, 32 * 1024);
+  let input;
+  try { input = validateChat(body); } catch (error) { throw new HttpError(400, error.message); }
+  await workspaceCompany(auth, env, body.companyId);
+  const {state} = await workspaceWithAnalyses(auth, env);
+  if (state?.aiAuto === false) throw new HttpError(403, 'AI tahliliga ruxsat o‘chirilgan. Uni sozlamada yoqing.');
+  const built = companyContext(state, body.companyId);
+  const now = nowMs();
+  const day = 24 * 60 * 60 * 1000;
+  const limit = Math.max(1, Math.min(1000, Number(env.AI_MAX_DAILY_CHAT) || 100));
+  const bucket = await sha256Hex(`chat:${auth.accountId}:${Math.floor(now / day)}`);
+  const row = await env.DB.prepare(`INSERT INTO login_limits(bucket, attempts, expires_at) VALUES(?, 1, ?)
+    ON CONFLICT(bucket) DO UPDATE SET attempts=login_limits.attempts+1
+    RETURNING attempts`).bind(bucket, now + day).first();
+  if (!row || Number(row.attempts) > limit) throw new HttpError(429, 'Bugungi chat limiti tugadi. Ertaga qayta urinib ko‘ring.');
+  try { return json({result: await runChat(input, built, {key: env.OPENAI_API_KEY, model: env.OPENAI_MODEL || 'gpt-5.6-luna'})}); }
+  catch (error) { throw new HttpError(502, error?.name === 'TimeoutError' ? 'AI javobi juda uzoq kechikdi.' : (error?.message || 'AI so‘rovi bajarilmadi.')); }
 }
 
 async function msfoJob(auth, id, env) {
@@ -473,6 +514,7 @@ export function createWorker() {
         if (request.method === 'GET' && url.pathname === '/api/ai/status') return json({connected: !!env.OPENAI_API_KEY, managed: true, background: true});
         if (request.method === 'POST' && url.pathname === '/api/ai/analyze') return await analyze(request, auth, env);
         if (request.method === 'POST' && url.pathname === '/api/msfo') return await msfo(request, auth, env);
+        if (request.method === 'POST' && url.pathname === '/api/chat') return await chat(request, auth, env);
         const msfoJobMatch = url.pathname.match(/^\/api\/msfo\/jobs\/([^/]+)$/);
         if (request.method === 'GET' && msfoJobMatch) return await msfoJob(auth, decodeURIComponent(msfoJobMatch[1]), env);
         const jobMatch = url.pathname.match(/^\/api\/ai\/jobs\/([^/]+)$/);

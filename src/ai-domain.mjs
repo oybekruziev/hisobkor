@@ -48,3 +48,21 @@ export function reviewFindings(doc,docs,company){
  for(const x of [...issues,...notes])counts[x.tone]++;
  return {issues,notes,counts};
 }
+
+/**
+ * One analysis state per uploaded file (brief §7): queued → processing → needs_review | completed | failed | unsupported.
+ * "not_started" means consent is off or the service was unavailable; it never hides a file.
+ */
+const ANALYSABLE = /\.(pdf|png|jpe?g|xlsx|csv)$/i;
+export function analysisState(doc){
+ if(!doc||doc.demo||!doc.fileName||doc.status==='missing')return 'none';
+ if(!ANALYSABLE.test(doc.fileName))return 'unsupported';
+ const ai=doc.ai;
+ if(!ai||(ai.fileKey&&ai.fileKey!==version(doc)))return 'not_started';
+ if(ai.status==='queued')return 'queued';
+ if(ai.status==='processing')return 'processing';
+ if(ai.status==='error')return 'failed';
+ if(validAnalysis(doc))return doc.ai.result.issues.length?'needs_review':'completed';
+ return 'failed';
+}
+export const analysisLabels={none:'',not_started:'Tahlil boshlanmagan',queued:'Navbatda',processing:'Tahlil qilinmoqda',needs_review:'Tekshirish kerak',completed:'Tahlil tugadi',failed:'Tahlil bajarilmadi',unsupported:'Format qo‘llab-quvvatlanmaydi'};

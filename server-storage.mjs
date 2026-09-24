@@ -1,3 +1,4 @@
+import {validateMsfoList,validateMhxsProjects} from './src/mhxs/validate.mjs';
 import {mkdir, readFile, rename, open, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
@@ -23,6 +24,8 @@ export function validateWorkspaceState(state) {
   if (!('profile' in state) || (state.profile !== null && (!state.profile || typeof state.profile !== 'object' || Array.isArray(state.profile)))) throw new Error('Profil yaroqsiz.');
   if(state.profile){if(!text(state.profile.fullName,100)||!text(state.profile.phone,20))throw new Error('Profil maydoni yaroqsiz.');for(const key of ['email','workspace'])if(key in state.profile&&!text(state.profile[key],240,false))throw new Error('Profil maydoni yaroqsiz.');}
   if('aiAuto'in state&&typeof state.aiAuto!=='boolean')throw new Error('AI sozlamasi yaroqsiz.');
+  if('msfo'in state)validateMsfoList(state.msfo,companyIds);
+  if('mhxs'in state)validateMhxsProjects(state.mhxs,companyIds);
 }
 export function validateFile(bytes, contentType) {
   const type = String(contentType || '').split(';',1)[0].trim().toLowerCase();

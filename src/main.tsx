@@ -44,14 +44,16 @@ import {Runtime,ErrorBoundary} from './Runtime';
 import {BackupPanel} from './BackupPanel';
 import {CompanyOverview} from './CompanyOverview';
 import {AIOverlay} from './AIOverlay';
-import {MsfoPage} from './Msfo';
+import {MsfoPage,createMsfoFromHtml,downloadDocx} from './Msfo';
+import {MhxsProjects} from './mhxs/Project';
+import {CompanyChat} from './CompanyChat';
 import {AiConsent} from './components/app/AiConsent';
 import {appRoute} from './company-overview.mjs';
 import {eligible} from './ai-domain.mjs';
 import {migrateWorkspace,companyHistory,profileError,companyRequirements} from './workspace.mjs';
 
 /** Routes. "archive" (permanent documents) is a view of the Hujjatlar section, not a section of its own. */
-const tabs=[['overview','Umumiy ko‘rinish','chart','Umumiy'],['documents','Hujjatlar','document','Hujjatlar'],['history','Tarix','clock','Tarix'],['archive','Doimiy hujjatlar','folder','Doimiy'],['info','Ma’lumotlar','company','Ma’lumot']];
+const tabs=[['overview','Umumiy ko‘rinish','chart','Umumiy'],['documents','Hujjatlar','document','Hujjatlar'],['mhxs','MHXS','msfo','MHXS'],['history','Tarix','clock','Tarix'],['archive','Doimiy hujjatlar','folder','Doimiy'],['info','Ma’lumotlar','company','Ma’lumot']];
 const sections=tabs.filter(t=>t[0]!=='archive');
 const sectionOf=(tab:string)=>tab==='archive'?'documents':tab;
 
@@ -73,6 +75,7 @@ function App({saved,session,logout}:any){
  const [profile,setProfile]=useState<any>(initial.profile);
  const [closed,setClosed]=useState<string[]>(initial.closed);
  const [msfo,setMsfo]=useState<any[]>(()=>Array.isArray(initial.msfo)?initial.msfo:[]);
+ const [mhxs,setMhxs]=useState<any[]>(()=>Array.isArray(initial.mhxs)?initial.mhxs:[]);
  const [route,setRoute]=useState(()=>appRoute(location.hash.slice(1),initial.companies));
  const [period,setPeriod]=useState(currentPeriod());
  const [query,setQuery]=useState('');
@@ -94,9 +97,10 @@ function App({saved,session,logout}:any){
  const [aiAuto,setAiAuto]=useState(initial.aiAuto!==false);
  const [aiOpen,setAiOpen]=useState(false);
  const [companyQuery,setCompanyQuery]=useState('');
+ const [chatOpen,setChatOpen]=useState(false);
  useEffect(()=>{const update=()=>{setRoute(appRoute(location.hash.slice(1),companies));setQuery('');setFilter(nextFilter.current||'all');nextFilter.current=null;setMobileMenu(false)};addEventListener('hashchange',update);return()=>removeEventListener('hashchange',update)},[companies]);
- const workspaceState={...initial,companies,docs,activity,closed,profile,aiAuto,msfo,workspace:profile?.workspace||initial.workspace};
- useEffect(()=>{let current=true;pendingSave.current=true;setSaveStatus('saving');const t=setTimeout(()=>{saveState(workspaceState).then(()=>{if(current){pendingSave.current=false;setSavedError('');setSaveStatus('saved')}}).catch(e=>{if(current){setSavedError(e.message||'Ma’lumotlar saqlanmadi.');setSaveStatus('error')}})},200);return()=>{current=false;clearTimeout(t)}},[companies,docs,activity,closed,profile,aiAuto,msfo]);
+ const workspaceState={...initial,companies,docs,activity,closed,profile,aiAuto,msfo,mhxs,workspace:profile?.workspace||initial.workspace};
+ useEffect(()=>{let current=true;pendingSave.current=true;setSaveStatus('saving');const t=setTimeout(()=>{saveState(workspaceState).then(()=>{if(current){pendingSave.current=false;setSavedError('');setSaveStatus('saved')}}).catch(e=>{if(current){setSavedError(e.message||'Ma’lumotlar saqlanmadi.');setSaveStatus('error')}})},200);return()=>{current=false;clearTimeout(t)}},[companies,docs,activity,closed,profile,aiAuto,msfo,mhxs]);
  useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(pendingSave.current||hasPendingWrites()){e.preventDefault();e.returnValue=''}};addEventListener('beforeunload',warn);return()=>removeEventListener('beforeunload',warn)},[]);
  useEffect(()=>()=>{if(preview)URL.revokeObjectURL(preview)},[preview]);
  const parts=route.split('/');
@@ -116,7 +120,7 @@ function App({saved,session,logout}:any){
  const current=company?companyRequirements(docs,company.id,period).filter(d=>showSampleDocs||!d.demo):[];
  const stats=summarize(current);
  const documentList=company?(tab==='archive'?docs.filter(d=>d.company===company.id&&d.scope==='permanent'&&(showSampleDocs||!d.demo)):current):[];
- const showAi=documentList.some((d:any)=>eligible(d)&&d.ai);
+ const showAi=!!ai.connection.connected||documentList.some((d:any)=>eligible(d)&&d.ai);
  const visible=documentList.filter(d=>(filter==='all'||(filter==='outstanding'?['missing','correction_requested'].includes(d.status):d.status===filter))&&`${d.title} ${d.fileName}`.toLowerCase().includes(query.toLowerCase()));
  function saveProfile(e:any){e.preventDefault();const f=new FormData(e.currentTarget);const value={fullName:String(f.get('fullName')).trim(),phone:String(f.get('phone')).trim(),email:String(f.get('email')||'').trim(),workspace:String(f.get('workspace')||'').trim()};const message=profileError(value);if(message){setError(message);return;}setProfile(value);setError('');setModal(null);go('dashboard');setToast('Profil saqlandi. Endi kompaniyalaringiz bilan ishlashingiz mumkin.');}
  function ProfileForm({editing=false}:any){const errorId=error?'profile-error':undefined;const bad=!!error;return <form onSubmit={saveProfile} noValidate aria-describedby={errorId}><FieldGroup><Field data-invalid={bad||undefined}><FieldLabel htmlFor="profile-name">Ism va familiya</FieldLabel><Input id="profile-name" name="fullName" autoComplete="name" required maxLength={100} placeholder="Ism va familiyangiz" defaultValue={profile?.fullName||''} aria-invalid={bad||undefined} aria-describedby={errorId}/><FieldDescription>Hujjat qarorlarida va tarixda shu ism ko‘rinadi.</FieldDescription></Field><Field data-invalid={bad||undefined}><FieldLabel htmlFor="profile-phone">Telefon raqami</FieldLabel><Input id="profile-phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" required maxLength={20} placeholder="+998 90 123 45 67" defaultValue={profile?.phone||''} aria-invalid={bad||undefined} aria-describedby={errorId}/></Field><Field><FieldLabel htmlFor="profile-email">Elektron pochta <span className="font-normal text-muted-foreground">Ixtiyoriy</span></FieldLabel><Input id="profile-email" name="email" type="email" inputMode="email" autoComplete="email" placeholder="siz@pochta.uz" defaultValue={profile?.email||''}/></Field><Field><FieldLabel htmlFor="profile-workspace">Buxgalteriya xizmatingiz nomi <span className="font-normal text-muted-foreground">Ixtiyoriy</span></FieldLabel><Input id="profile-workspace" name="workspace" maxLength={80} placeholder="Masalan, Hisob Servis" defaultValue={profile?.workspace||''}/><FieldDescription>Yon panelda ismingiz ostida ko‘rinadi.</FieldDescription></Field>{error&&<FieldError id="profile-error">{error}</FieldError>}<Button type="submit" className="w-full">{editing?'Saqlash':'Davom etish'}<Icon name="arrow"/></Button></FieldGroup><p className="mt-4 flex items-start gap-2 text-sm text-muted-foreground"><Icon name="shield" size={16} className="mt-0.5 shrink-0"/>{session.storage==='server'?'Ma’lumotlar serverdagi ish joyingizda saqlanadi.':'Ma’lumotlar shu brauzerda saqlanadi.'}</p></form>}
@@ -235,7 +239,7 @@ function App({saved,session,logout}:any){
    </header>
 
    <div id="main-content" tabIndex={-1} className={cn("mx-auto flex w-full min-w-0",msfoItem?"max-w-[90rem]":"max-w-6xl","flex-1 flex-col gap-5 p-4 outline-none max-lg:pb-24 lg:gap-7 lg:px-8 lg:py-8")}>
-{isMsfo?<MsfoPage items={msfo} setItems={setMsfo} companies={companies} route={route} go={go} aiConnected={!!ai.connection.connected} aiLoading={!!ai.connection.loading} aiConsent={aiAuto} setAiConsent={setAiAuto}/>:!company?<>
+{isMsfo?<MsfoPage onAssign={(item:any,cid:string)=>{const c=companies.find(x=>x.id===cid);if(c)event('MHXS hujjati kompaniyaga biriktirildi',c,item.title,'company');notify.success('Hujjat kompaniyaga biriktirildi.')}} items={msfo} setItems={setMsfo} companies={companies} route={route} go={go} aiConnected={!!ai.connection.connected} aiLoading={!!ai.connection.loading} aiConsent={aiAuto} setAiConsent={setAiAuto}/>:!company?<>
     <WorkspaceHome companies={companies} docs={docs} period={period} profile={profile} onPeriod={(value:string)=>setPeriod(value)} onOpenCompany={(id:string)=>go(`company/${id}/overview`)} onReview={reviewDocument} onUpload={()=>open({type:'upload',pick:true})} onAddCompany={()=>open({type:'company'})} banner={mine.length===0&&<section aria-labelledby="first-company" className="flex flex-col items-center gap-6 rounded-2xl border bg-card p-6 text-center shadow-[0_1px_2px_rgb(21_35_59/0.04),0_8px_24px_-12px_rgb(21_35_59/0.10)] sm:flex-row sm:p-8 sm:text-left"><Character pose="invite" width={180} eager className="max-sm:w-32!"/><div className="flex flex-col gap-3 sm:items-start"><p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase tabular-nums">2-qadam / 3 · Profil tayyor</p><h2 id="first-company" className="text-2xl font-semibold tracking-tight text-balance">Birinchi kompaniyangizni qo‘shing</h2><p className="max-w-[52ch] text-sm text-pretty text-muted-foreground">Xizmat ko‘rsatadigan tashkilot nomini kiriting — STIR va boshqa rekvizitlarni keyin to‘ldirasiz. Shundan so‘ng uning hujjatlarini yuklab, tekshirasiz.</p><Button size="lg" className="mt-1" onClick={()=>open({type:'company'})}><Icon name="plus"/>Kompaniya qo‘shish</Button></div></section>}/>
     <a href="#msfo" className="group/msfo flex items-center gap-4 rounded-2xl border border-dashed border-primary/30 bg-accent/50 p-4 outline-none hover:border-primary/60 hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:px-6">
      <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Icon name="msfo"/></span>
@@ -253,12 +257,15 @@ function App({saved,session,logout}:any){
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
        {(section==='overview'||tab==='documents')&&<PeriodPicker value={period} min="2000-01" max="2100-12" onChange={(value:string)=>{setPeriod(value);setFilter('all')}}/>}
+       <Button variant="outline" onClick={()=>setChatOpen(true)}><Icon name="help"/>Savol berish</Button>
        <Button variant="outline" aria-label={`AI tahlil${aiPending?`: ${aiPending} ta hujjat tekshirilmoqda`:''}`} onClick={()=>setAiOpen(true)}><Icon name="spark"/>AI tahlil{aiPending>0&&<UiBadge role="status" className="h-5 min-w-5 rounded-full px-1 tabular-nums">{aiPending}</UiBadge>}</Button>
        <Button onClick={()=>open({type:'upload'})}><Icon name="upload"/>Hujjat yuklash</Button>
       </div>
      </div>
      <nav aria-label="Kompaniya bo‘limlari" className="-mx-4 flex gap-1 overflow-x-auto border-b border-border/80 px-4 max-lg:hidden lg:mx-0 lg:px-0">{sections.map(([id,label,icon])=><a key={id} href={`#company/${company.id}/${id}`} aria-current={section===id?'page':undefined} className={cn('relative -mb-px flex h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-3.5 text-sm font-medium text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50',section===id&&'border-primary text-foreground [&_svg]:text-primary')}><Icon name={icon} size={16}/>{label}{id==='documents'&&stats.review>0&&<span className="rounded-full bg-warning/12 px-1.5 text-xs font-semibold text-warning tabular-nums">{stats.review}</span>}</a>)}</nav>
     </header>
+
+<CompanyChat open={chatOpen} onOpenChange={setChatOpen} company={company} docs={docs} state={workspaceState} connected={!!ai.connection.connected} consent={aiAuto} setConsent={setAiAuto} onAsked={(q:string)=>event('AI chatga savol berildi',company,q.slice(0,300),'spark')} onOpenDocument={(id:string)=>{const d=docs.find(x=>x.id===id&&x.company===company.id);if(d){setChatOpen(false);reviewDocument(d);}}}/>
 
 {section==='overview'&&<CompanyOverview company={company} docs={docs} period={period} closed={closed} onNavigate={(target:string)=>go(`company/${company.id}/${target}`)} onOpen={showDocument} onUpload={()=>open({type:'upload'})} onFilter={(value:string)=>{nextFilter.current=value;go(`company/${company.id}/documents`)}}/>}
 
@@ -291,7 +298,7 @@ function App({saved,session,logout}:any){
         </button></TableCell>
         <TableCell className="text-muted-foreground tabular-nums max-md:hidden"><time dateTime={d.date||undefined}>{formatDate(d.date)||'—'}</time></TableCell>
         <TableCell className="max-sm:hidden"><Badge status={d.status}/></TableCell>
-        {showAi&&<TableCell className="max-lg:hidden">{eligible(d)&&d.ai?<AIBadge doc={d}/>:<span className="text-sm text-muted-foreground">—</span>}</TableCell>}
+        {showAi&&<TableCell className="max-lg:hidden">{eligible(d)?<AIBadge doc={d}/>:<span className="text-sm text-muted-foreground">—</span>}</TableCell>}
         <TableCell className="text-right max-sm:hidden"><Button variant="ghost" size="sm" onClick={()=>showDocument(d)}><span>{d.status==='missing'?'Yuklash':d.status==='review_required'?'Tekshirish':'Ochish'}</span><Icon name="arrow"/></Button></TableCell>
        </TableRow>)}</TableBody>
       </Table></div>
@@ -310,6 +317,13 @@ function App({saved,session,logout}:any){
       <CardAction className={cn("max-sm:col-start-1 max-sm:row-start-3 max-sm:justify-self-start max-sm:pt-2",!stats.ready&&!closedNow&&"max-sm:hidden")}><Button variant={stats.ready&&!closedNow?'default':'outline'} disabled={!stats.ready||closedNow} onClick={()=>open({type:'close'})}>{closedNow?'Davr yopilgan':'Davrni yopish'}</Button></CardAction></CardHeader>
      {!stats.ready&&!closedNow&&<CardContent><ul role="list" className="flex flex-col gap-2">{periodBlockers(current).map((b:any)=><li key={b.status} className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"><StatusBadge status={b.status}/>{b.label}</li>)}</ul></CardContent>}
     </Card>}
+</>}
+
+{section==='mhxs'&&<>
+    <MhxsProjects company={company} projects={mhxs} setProjects={setMhxs} actor={profile.fullName}
+     onDocx={(html:string,title:string)=>downloadDocx(html,title)}
+     onOpenInEditor={async(html:string,title:string)=>{try{const meta=await createMsfoFromHtml({title,companyId:company.id,html});setMsfo(all=>[meta,...all]);event('MHXS qoralamasi redaktorga olindi',company,title,'document');go(`msfo/${meta.id}`);}catch(e:any){notify.error(e.message||'Hujjat saqlanmadi.')}}}/>
+    <MsfoPage companyId={company.id} items={msfo} setItems={setMsfo} companies={companies} route={route} go={go} aiConnected={!!ai.connection.connected} aiLoading={!!ai.connection.loading} aiConsent={aiAuto} setAiConsent={setAiAuto}/>
 </>}
 
 {section==='history'&&<Card>

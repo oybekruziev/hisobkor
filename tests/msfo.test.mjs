@@ -6,7 +6,7 @@ import {blocksToDocx, docxToBlocks, blocksToHtml, parseXml} from '../src/msfo/do
 import {msfoCounts, countMarkers, newMsfoItem} from '../src/msfo/model.mjs';
 import {appRoute} from '../src/company-overview.mjs';
 import {validateFile, validateWorkspaceState} from '../worker/validation.mjs';
-import {validateFile as validateLocalFile} from '../server-storage.mjs';
+import {validateFile as validateLocalFile, validateWorkspaceState as validateLocalState} from '../server-storage.mjs';
 
 const completed = value => ({status: 'completed', output: [{content: [{type: 'output_text', text: JSON.stringify(value)}]}]});
 const conversion = {title: 'Moliyaviy holat', summary: 'IAS 1', documentHtml: '<h1>Hisobot</h1>', changes: [{severity: 'odd', title: 'a', detail: 'b', standard: 'IAS 1'}], limitations: []};
@@ -130,11 +130,29 @@ test('routes, workspace state and JSON document files accept MSFO data', () => {
   assert.equal(appRoute('msfo/abc-1', []), 'msfo/abc-1');
   assert.equal(appRoute('msfo/../x', []), 'dashboard');
   const base = {companies: [], docs: [], activity: [], closed: [], profile: null, aiAuto: true};
-  assert.doesNotThrow(() => validateWorkspaceState({...base, msfo: [newMsfoItem({id: 'm1', title: 'A', mode: 'text'})]}));
+  const withCompany = {...base, companies: [{id: 'c1', name: 'Atlas'}]};
+  assert.doesNotThrow(() => validateWorkspaceState({...withCompany, msfo: [newMsfoItem({id: 'm1', title: 'A', mode: 'text', companyId: 'c1'})]}));
+  // New records must name a company; older (v1) records may stay unassigned until someone attaches them.
+  assert.throws(() => validateWorkspaceState({...base, msfo: [newMsfoItem({id: 'm1', title: 'A', mode: 'text'})]}), /biriktirilishi shart/);
+  assert.doesNotThrow(() => validateWorkspaceState({...base, msfo: [{id: 'm1', title: 'A', mode: 'text', companyId: null}]}));
+  assert.throws(() => validateLocalState({...base, msfo: [newMsfoItem({id: 'm1', title: 'A', mode: 'text'})]}), /biriktirilishi shart/);
   assert.throws(() => validateWorkspaceState({...base, msfo: [{id: 'm1', title: 'A', mode: 'text', companyId: 'none'}]}), /MSFO/);
   const json = new TextEncoder().encode('{"html":"<p>a</p>"}');
   assert.equal(validateFile(json, 'application/json'), 'application/json');
   assert.equal(validateLocalFile(Buffer.from(json), 'application/json'), 'application/json');
   assert.throws(() => validateFile(new TextEncoder().encode('<p>'), 'application/json'), /JSON/);
   assert.throws(() => validateFile(new TextEncoder().encode('[1]'), 'application/json'), /JSON/);
+});
+
+import {pushVersion} from '../src/msfo/model.mjs';
+test('editor versions: newest first, no duplicates, autosaves thinned, capped at 15', () => {
+  let v = pushVersion([], '<p>a</p>', {label: 'x', at: '2026-01-01T00:00:00Z'});
+  assert.equal(v.length, 1);
+  assert.equal(pushVersion(v, '<p>a</p>', {label: 'x', at: '2026-01-01T01:00:00Z'}).length, 1);
+  assert.equal(pushVersion(v, '<p>b</p>', {label: 'x', at: '2026-01-01T00:05:00Z', minGapMs: 600000}).length, 1);
+  v = pushVersion(v, '<p>b</p>', {label: 'AI dan oldin', kind: 'event', at: '2026-01-01T00:05:00Z', minGapMs: 600000});
+  assert.equal(v[0].label, 'AI dan oldin');
+  for (let i = 0; i < 20; i++) v = pushVersion(v, `<p>${i}</p>`, {label: 'e', kind: 'event', at: '2026-01-02T00:00:00Z'});
+  assert.equal(v.length, 15);
+  assert.equal(pushVersion(v, '', {label: 'e', at: 'x'}), v);
 });

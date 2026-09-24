@@ -216,9 +216,12 @@ test('migration contains every tenant and asynchronous job boundary', async () =
 
 test('MSFO endpoint: needs the managed key, validates input, and enforces a daily per-account budget', async () => {
   const f = await fixture();
-  const call = (body, env = f.env) => f.worker.fetch(new Request('https://app.hisobkor.uz/api/msfo', {method: 'POST', headers: {Cookie: `__Host-mezon_session=${f.token1}`, Origin: 'https://app.hisobkor.uz', 'X-Mezon-Request': '1', 'Content-Type': 'application/json'}, body: JSON.stringify(body)}), env, f.ctx);
+  const call = (body, env = f.env) => f.worker.fetch(new Request('https://app.hisobkor.uz/api/msfo', {method: 'POST', headers: {Cookie: `__Host-mezon_session=${f.token1}`, Origin: 'https://app.hisobkor.uz', 'X-Mezon-Request': '1', 'Content-Type': 'application/json'}, body: JSON.stringify('companyId' in body ? body : {companyId: 'c1', ...body})}), env, f.ctx);
   assert.equal((await call({mode: 'text', source: '<p>a</p>'})).status, 503);
   const env = {...f.env, OPENAI_API_KEY: 'sk-test', OPENAI_MODEL: 'm', AI_MAX_DAILY_MSFO: '2'};
+  // MHXS work happens inside a company of the caller's own workspace; the browser's word is not enough.
+  assert.equal((await call({companyId: null, mode: 'text', source: 'a'}, env)).status, 400);
+  assert.equal((await call({companyId: 'someone-elses', mode: 'text', source: 'a'}, env)).status, 404);
   assert.equal((await call({mode: 'nope', source: 'a'}, env)).status, 400);
   const original = globalThis.fetch;
   const sentBodies = [];
@@ -246,5 +249,24 @@ test('MSFO endpoint: needs the managed key, validates input, and enforces a dail
     assert.equal((await call({mode: 'statements', file: {name: 'b.pdf', fileKey: 'pdf-1'}}, env)).status, 200);
     assert.match(sentBodies.at(-1).input[0].content[1].file_data, /^data:application\/pdf;base64,JVBERi0xLjcgYWJj$/);
     assert.equal((await call({mode: 'text', source: '<p>a</p>'}, env)).status, 429);
+  } finally { globalThis.fetch = original; }
+});
+
+test('company chat: managed key, company of the caller only, daily budget', async () => {
+  const f = await fixture();
+  const call = (body, env) => f.worker.fetch(new Request('https://app.hisobkor.uz/api/chat', {method: 'POST', headers: {Cookie: `__Host-mezon_session=${f.token1}`, Origin: 'https://app.hisobkor.uz', 'X-Mezon-Request': '1', 'Content-Type': 'application/json'}, body: JSON.stringify(body)}), env, f.ctx);
+  assert.equal((await call({companyId: 'c1', question: 'Nima yetishmayapti?'}, f.env)).status, 503);
+  const env = {...f.env, OPENAI_API_KEY: 'sk-test', OPENAI_MODEL: 'm', AI_MAX_DAILY_CHAT: '1'};
+  assert.equal((await call({companyId: 'c1', question: ''}, env)).status, 400);
+  assert.equal((await call({companyId: 'other', question: 'a'}, env)).status, 404);
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({status: 'completed', output: [{content: [{type: 'output_text', text: JSON.stringify({answer: 'Yetarli dalil yo‘q', insufficient: true, suggestion: null, sources: [{documentId: 'ghost', quote: 'x', location: null}]})}]}]}));
+  try {
+    const ok = await call({companyId: 'c1', question: 'Nima yetishmayapti?'}, env);
+    assert.equal(ok.status, 200);
+    const {result} = await ok.json();
+    assert.equal(result.insufficient, true);
+    assert.deepEqual(result.sources, []);
+    assert.equal((await call({companyId: 'c1', question: 'Yana?'}, env)).status, 429);
   } finally { globalThis.fetch = original; }
 });
