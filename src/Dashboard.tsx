@@ -110,15 +110,15 @@ export function WorkspaceHome({companies, docs, period, profile, onPeriod, onOpe
       {banner}
 
       {mine.length > 0 && (
-        <section aria-labelledby="focus-title" className="relative overflow-hidden rounded-2xl bg-sidebar p-5 text-sidebar-foreground sm:p-7">
-          <span aria-hidden="true" className="pointer-events-none absolute -top-24 -right-16 size-72 rounded-full bg-sidebar-primary/15 blur-3xl"/>
+        <section aria-labelledby="focus-title" className="relative overflow-hidden rounded-2xl bg-ink p-5 text-ink-foreground sm:p-7">
+          <span aria-hidden="true" className="pointer-events-none absolute -top-24 -right-16 size-72 rounded-full bg-ink-primary/15 blur-3xl"/>
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex max-w-xl flex-col gap-2">
-              <p className="text-sm font-medium text-sidebar-primary">Bugungi ish</p>
+              <p className="text-sm font-medium text-ink-primary">Bugungi ish</p>
               <h2 id="focus-title" className="text-2xl font-semibold tracking-tight text-balance text-white sm:text-[1.75rem]">{headline.title}</h2>
               <p className="text-sm text-pretty text-white/70">{headline.text}</p>
             </div>
-            {waiting.length > 0 && <Button size="lg" className="bg-sidebar-primary font-semibold text-sidebar-primary-foreground hover:bg-sidebar-primary/90 max-lg:self-start" onClick={() => onReview(waiting[0].doc)}>Tekshirishni boshlash<ArrowRight/></Button>}
+            {waiting.length > 0 && <Button size="lg" className="bg-ink-primary font-semibold text-ink-primary-foreground hover:bg-ink-primary/90 max-lg:self-start" onClick={() => onReview(waiting[0].doc)}>Tekshirishni boshlash<ArrowRight/></Button>}
           </div>
           <div className="relative mt-6"><Breakdown totals={totals}/></div>
         </section>
