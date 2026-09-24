@@ -36,7 +36,7 @@ function CompanyTile({row, onOpen}: any) {
   return (
     <li>
       <button type="button" onClick={() => onOpen(company.id)} aria-label={`${company.name}: ${companyStates[state]}. Kompaniyani ochish`}
-        className="group/tile flex h-full w-full flex-col gap-4 rounded-xl border bg-card p-4 text-left outline-none transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:ring-[3px] focus-visible:ring-ring/50">
+        className="group/tile flex h-full w-full flex-col gap-4 rounded-2xl border border-border/80 bg-card p-4 text-left shadow-[0_1px_2px_rgb(20_30_25/0.04)] outline-none transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_12px_28px_-16px_rgb(20_60_45/0.35)] focus-visible:ring-[3px] focus-visible:ring-ring/50">
         <span className="flex items-start gap-3">
           <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-sm font-semibold text-secondary-foreground">{initialsOf(company.name)}</span>
           <span className="flex min-w-0 flex-1 flex-col">
@@ -58,17 +58,17 @@ function CompanyTile({row, onOpen}: any) {
 function Breakdown({totals}: {totals: {accepted: number; review: number; missing: number}}) {
   const all = totals.accepted + totals.review + totals.missing;
   const parts = [
-    {key: 'accepted', label: 'Qabul qilingan', value: totals.accepted, bar: 'bg-emerald-300', dot: 'bg-emerald-300'},
+    {key: 'accepted', label: 'Qabul qilingan', value: totals.accepted, bar: 'bg-ink-primary', dot: 'bg-ink-primary'},
     {key: 'review', label: 'Tekshirish kerak', value: totals.review, bar: 'bg-amber-300', dot: 'bg-amber-300'},
-    {key: 'missing', label: 'Kutilmoqda', value: totals.missing, bar: 'bg-white/25', dot: 'bg-white/40'},
+    {key: 'missing', label: 'Kutilmoqda', value: totals.missing, bar: 'bg-white/20', dot: 'bg-white/35'},
   ];
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-white/10" role="img" aria-label={parts.map(p => `${p.label}: ${p.value}`).join(', ')}>
-        {all > 0 && parts.map(p => p.value > 0 && <span key={p.key} className={cn('h-full first:rounded-l-full last:rounded-r-full', p.bar)} style={{width: `${(p.value / all) * 100}%`}}/>)}
+      <div className="flex h-2 w-full gap-1 overflow-hidden rounded-full" role="img" aria-label={parts.map(p => `${p.label}: ${p.value}`).join(', ')}>
+        {all > 0 && parts.map(p => p.value > 0 && <span key={p.key} className={cn('h-full rounded-full', p.bar)} style={{width: `${(p.value / all) * 100}%`}}/>)}
       </div>
       <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-        {parts.map(p => <div key={p.key} className="flex items-center gap-2"><span aria-hidden="true" className={cn('size-2 rounded-full', p.dot)}/><dt className="text-white/75">{p.label}</dt><dd className="font-semibold tabular-nums">{p.value}</dd></div>)}
+        {parts.map(p => <div key={p.key} className="flex items-center gap-2"><span aria-hidden="true" className={cn('size-2 rounded-full', p.dot)}/><dt className="text-white/60">{p.label}</dt><dd className="font-semibold text-white tabular-nums">{p.value}</dd></div>)}
       </dl>
     </div>
   );
@@ -97,8 +97,8 @@ export function WorkspaceHome({companies, docs, period, profile, onPeriod, onOpe
     <div className="flex min-w-0 flex-col gap-5 lg:gap-7">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-primary">{formatPeriod(period)} · {mine.length} ta kompaniya</p>
-          <h1 className="mt-1 text-[1.75rem] font-semibold tracking-tight text-balance lg:text-[2rem]">{firstName ? `${greeting()}, ${firstName}` : greeting()}</h1>
+          <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">{formatPeriod(period)} · {mine.length} ta kompaniya</p>
+          <h1 className="mt-2 text-[1.875rem] leading-tight font-semibold tracking-[-0.025em] text-balance lg:text-[2.25rem]">{firstName ? `${greeting()}, ${firstName}` : greeting()}</h1>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <PeriodPicker value={period} min="2000-01" max="2100-12" onChange={onPeriod}/>
@@ -110,34 +110,42 @@ export function WorkspaceHome({companies, docs, period, profile, onPeriod, onOpe
       {banner}
 
       {mine.length > 0 && (
-        <section aria-labelledby="focus-title" className="relative overflow-hidden rounded-2xl bg-ink p-5 text-ink-foreground sm:p-7">
-          <span aria-hidden="true" className="pointer-events-none absolute -top-24 -right-16 size-72 rounded-full bg-ink-primary/15 blur-3xl"/>
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex max-w-xl flex-col gap-2">
-              <p className="text-sm font-medium text-ink-primary">Bugungi ish</p>
-              <h2 id="focus-title" className="text-2xl font-semibold tracking-tight text-balance text-white sm:text-[1.75rem]">{headline.title}</h2>
-              <p className="text-sm text-pretty text-white/70">{headline.text}</p>
+        <section aria-labelledby="focus-title" className="relative isolate overflow-hidden rounded-3xl bg-ink p-6 text-ink-foreground shadow-[0_20px_40px_-24px_rgb(10_40_30/0.55)] sm:p-8">
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(rgb(255_255_255/0.07)_1px,transparent_1px)] [mask-image:linear-gradient(to_left,black,transparent_70%)] bg-[size:18px_18px]"/>
+          <span aria-hidden="true" className="pointer-events-none absolute -top-28 -right-20 -z-10 size-80 rounded-full bg-ink-primary/20 blur-3xl"/>
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex max-w-xl flex-col gap-3">
+              <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-ink-primary uppercase"><span aria-hidden="true" className="size-1.5 rounded-full bg-ink-primary"/>Bugungi ish</p>
+              {waiting.length ? (
+                <h2 id="focus-title" className="flex items-end gap-4 text-white">
+                  <span className="text-6xl leading-[0.85] font-semibold tracking-tight tabular-nums sm:text-7xl">{waiting.length}</span>
+                  <span className="pb-1 text-lg leading-snug font-medium text-balance sm:text-xl">ta hujjat<br/>tekshiruvingizni kutmoqda</span>
+                </h2>
+              ) : (
+                <h2 id="focus-title" className="text-3xl font-semibold tracking-tight text-white">{headline.title}</h2>
+              )}
+              <p className="text-sm text-pretty text-white/65">{headline.text}</p>
             </div>
-            {waiting.length > 0 && <Button size="lg" className="bg-ink-primary font-semibold text-ink-primary-foreground hover:bg-ink-primary/90 max-lg:self-start" onClick={() => onReview(waiting[0].doc)}>Tekshirishni boshlash<ArrowRight/></Button>}
+            {waiting.length > 0 && <Button size="lg" className="h-11 rounded-xl bg-ink-primary px-5 font-semibold text-ink-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.35),0_8px_20px_-8px_rgb(120_230_180/0.5)] hover:bg-ink-primary/90 max-lg:self-start" onClick={() => onReview(waiting[0].doc)}>Tekshirishni boshlash<ArrowRight/></Button>}
           </div>
-          <div className="relative mt-6"><Breakdown totals={totals}/></div>
+          <div className="mt-7 border-t border-white/10 pt-5"><Breakdown totals={totals}/></div>
         </section>
       )}
 
       <div className="grid min-w-0 gap-5 lg:grid-cols-5 lg:gap-7">
         <Card className="gap-4 lg:col-span-3 lg:self-start">
           <CardHeader>
-            <CardTitle className="text-base">Tekshiruv navbati</CardTitle>
+            <CardTitle className="text-[1.0625rem] tracking-tight">Tekshiruv navbati</CardTitle>
             <CardDescription>Eng yangi hujjatlar yuqorida</CardDescription>
             {waiting.length > 0 && <CardAction><span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-800 tabular-nums">{waiting.length}</span></CardAction>}
           </CardHeader>
           <CardContent>
             {waiting.length ? (
-              <ul role="list" className="-mx-2 flex flex-col">
+              <ul role="list" className="-mx-2 flex flex-col divide-y divide-border/60">
                 {waiting.slice(0, MAX_ATTENTION).map(({doc, company}: any) => (
                   <li key={doc.id}>
                     <button type="button" onClick={() => onReview(doc)} aria-label={`${documentName(doc)} hujjatini tekshirish`}
-                      className="group/q flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50">
+                      className="group/q flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50">
                       <FileTile fileName={doc.fileName}/>
                       <span className="flex min-w-0 flex-1 flex-col">
                         <span className="truncate text-sm font-medium">{documentName(doc)}</span>
@@ -166,7 +174,7 @@ export function WorkspaceHome({companies, docs, period, profile, onPeriod, onOpe
 
         <section aria-labelledby="companies-title" className="flex min-w-0 flex-col gap-3 lg:col-span-2">
           <div className="flex items-center justify-between gap-3">
-            <h2 id="companies-title" className="font-semibold">Kompaniyalar <span className="font-normal text-muted-foreground tabular-nums">{mine.length}</span></h2>
+            <h2 id="companies-title" className="text-[1.0625rem] font-semibold tracking-tight">Kompaniyalar <span className="font-normal text-muted-foreground tabular-nums">{mine.length}</span></h2>
             {mine.length > 0 && <Button variant="ghost" size="sm" onClick={onAddCompany}><Plus/>Qo‘shish</Button>}
           </div>
           {searchable && <SearchField value={query} onChange={e => setQuery(e.target.value)} placeholder="Kompaniya nomi yoki STIR" aria-label="Kompaniyalarni qidirish"/>}

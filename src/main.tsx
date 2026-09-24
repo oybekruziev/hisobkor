@@ -168,9 +168,9 @@ function App({saved,session,logout}:any){
   <a className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground" href="#main-content" onClick={e=>{e.preventDefault();document.getElementById('main-content')?.focus()}}>Asosiy mazmunga o‘tish</a>
 
   <Sidebar variant="inset" collapsible="offcanvas"><div role="navigation" aria-label="Asosiy menyu" className="contents">
-   <SidebarHeader className="gap-3 px-3 pt-4">
+   <SidebarHeader className="gap-4 px-3 pt-5 pb-2">
     <a href="#dashboard" aria-label="Hisobkor.uz bosh sahifasi" className="flex items-center gap-2.5 rounded-lg px-1.5 py-1 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"><img src="/brand-h.png" width="28" height="28" alt="" className="size-7 shrink-0 object-contain"/><span className="text-[1.0625rem] font-semibold tracking-tight">hisobkor<span className="font-normal text-sidebar-muted">.uz</span></span></a>
-    <Button onClick={()=>open({type:'upload',pick:!company})} disabled={!mine.length&&!company} className="h-10 w-full justify-start gap-2 bg-sidebar-primary font-semibold text-sidebar-primary-foreground shadow-xs hover:bg-sidebar-primary/90"><Icon name="upload"/>Hujjat yuklash</Button>
+    <Button onClick={()=>open({type:'upload',pick:!company})} disabled={!mine.length&&!company} className="h-10 w-full justify-start gap-2 rounded-xl bg-sidebar-primary font-semibold text-sidebar-primary-foreground shadow-xs hover:bg-sidebar-primary/90"><Icon name="upload"/>Hujjat yuklash</Button>
    </SidebarHeader>
    <SidebarContent className="gap-0">
     <SidebarGroup><SidebarGroupContent><SidebarMenu aria-label="Asosiy">
@@ -179,7 +179,7 @@ function App({saved,session,logout}:any){
     </SidebarMenu></SidebarGroupContent></SidebarGroup>
 
     <SidebarGroup className="min-h-0 flex-1">
-     <SidebarGroupLabel className="text-sidebar-muted">Kompaniyalar<span className="ml-1.5 tabular-nums opacity-80">{mine.length}</span></SidebarGroupLabel>
+     <SidebarGroupLabel className="text-[0.6875rem] font-semibold tracking-[0.12em] text-sidebar-muted uppercase">Kompaniyalar<span className="ml-1.5 rounded-full bg-sidebar-border/70 px-1.5 text-[0.625rem] tabular-nums">{mine.length}</span></SidebarGroupLabel>
      <button type="button" onClick={()=>open({type:'company'})} aria-label="Kompaniya qo‘shish" title="Kompaniya qo‘shish" className="absolute top-3.5 right-3 flex size-6 items-center justify-center rounded-md text-sidebar-muted outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"><Icon name="plus" size={16}/></button>
      <SidebarGroupContent className="flex min-h-0 flex-col gap-2">
       {mine.length>6&&<label className="relative block px-0.5"><span className="sr-only">Kompaniya qidirish</span><Icon name="search" size={14} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sidebar-muted"/><input value={companyQuery} onChange={e=>setCompanyQuery(e.target.value)} placeholder="Qidirish…" className="h-8 w-full rounded-md border border-sidebar-border bg-sidebar-accent/60 pr-2 pl-8 text-sm text-sidebar-foreground outline-none placeholder:text-sidebar-muted focus-visible:ring-2 focus-visible:ring-sidebar-ring"/></label>}
@@ -197,7 +197,7 @@ function App({saved,session,logout}:any){
      <SidebarMenuItem><SidebarMenuButton className="text-sidebar-muted" onClick={()=>open({type:'help'})}><Icon name="help"/><span>Yordam</span></SidebarMenuButton></SidebarMenuItem>
     </SidebarMenu></SidebarGroupContent></SidebarGroup>
    </SidebarContent>
-   <SidebarFooter className="border-t border-sidebar-border">
+   <SidebarFooter className="p-3"><div className="rounded-xl border border-sidebar-border bg-sidebar-accent shadow-[0_1px_2px_rgb(20_30_25/0.04)]">
     <SidebarMenu><SidebarMenuItem>
      <Dropdown.DropdownMenu modal={false}>
       <Dropdown.DropdownMenuTrigger asChild>
@@ -215,11 +215,11 @@ function App({saved,session,logout}:any){
       </Dropdown.DropdownMenuContent>
      </Dropdown.DropdownMenu>
     </SidebarMenuItem></SidebarMenu>
-   </SidebarFooter>
+   </div></SidebarFooter>
   </div></Sidebar>
 
-  <SidebarInset className="min-w-0">
-   <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-4 backdrop-blur lg:rounded-t-xl lg:px-8">
+  <SidebarInset className="min-w-0 bg-[radial-gradient(900px_320px_at_15%_-5%,oklch(0.95_0.035_165/0.8),transparent_70%)]">
+   <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border/70 bg-background/80 px-4 backdrop-blur-md lg:rounded-t-xl lg:px-8">
     <Tooltip><TooltipTrigger asChild><SidebarTrigger data-slot="sidebar-trigger" className="-ml-1" aria-label="Menyu"/></TooltipTrigger><TooltipContent>Menyu</TooltipContent></Tooltip>
     <Separator orientation="vertical" className="mx-1 data-[orientation=vertical]:h-4"/>
     <Breadcrumb className="min-w-0" aria-label="Sahifa yo‘li"><BreadcrumbList className="flex-nowrap">
@@ -247,8 +247,8 @@ function App({saved,session,logout}:any){
     <header className="flex flex-col gap-5">
      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div className="flex min-w-0 items-center gap-4">
-       <InitialsTile name={company.name} size="lg" className="size-12 rounded-2xl bg-primary text-lg text-primary-foreground"/>
-       <div className="min-w-0"><h1 className="text-2xl font-semibold tracking-tight text-balance [overflow-wrap:anywhere] lg:text-[1.75rem]">{companyTitle(company)}</h1><p className="mt-0.5 text-sm text-muted-foreground tabular-nums">{[company.legal,company.stir?'STIR '+company.stir:'STIR kiritilmagan'].filter(Boolean).join(' · ')}</p></div>
+       <InitialsTile name={company.name} size="lg" className="size-14 rounded-2xl bg-gradient-to-br from-primary to-[oklch(0.38_0.08_175)] text-lg text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_8px_18px_-10px_rgb(10_60_45/0.6)]"/>
+       <div className="min-w-0"><h1 className="text-2xl leading-tight font-semibold tracking-[-0.025em] text-balance [overflow-wrap:anywhere] lg:text-[2rem]">{companyTitle(company)}</h1><p className="mt-0.5 text-sm text-muted-foreground tabular-nums">{[company.legal,company.stir?'STIR '+company.stir:'STIR kiritilmagan'].filter(Boolean).join(' · ')}</p></div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
        {(section==='overview'||tab==='documents')&&<PeriodPicker value={period} min="2000-01" max="2100-12" onChange={(value:string)=>{setPeriod(value);setFilter('all')}}/>}
@@ -256,7 +256,7 @@ function App({saved,session,logout}:any){
        <Button onClick={()=>open({type:'upload'})}><Icon name="upload"/>Hujjat yuklash</Button>
       </div>
      </div>
-     <nav aria-label="Kompaniya bo‘limlari" className="-mx-4 flex gap-1 overflow-x-auto border-b px-4 max-lg:hidden lg:mx-0 lg:px-0">{sections.map(([id,label,icon])=><a key={id} href={`#company/${company.id}/${id}`} aria-current={section===id?'page':undefined} className={cn('relative -mb-px flex h-10 shrink-0 items-center gap-2 border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50',section===id&&'border-primary text-foreground')}><Icon name={icon} size={16}/>{label}{id==='documents'&&stats.review>0&&<span className="rounded-full bg-amber-100 px-1.5 text-xs font-semibold text-amber-800 tabular-nums">{stats.review}</span>}</a>)}</nav>
+     <nav aria-label="Kompaniya bo‘limlari" className="-mx-4 flex gap-1 overflow-x-auto border-b border-border/80 px-4 max-lg:hidden lg:mx-0 lg:px-0">{sections.map(([id,label,icon])=><a key={id} href={`#company/${company.id}/${id}`} aria-current={section===id?'page':undefined} className={cn('relative -mb-px flex h-11 shrink-0 items-center gap-2 border-b-2 border-transparent px-3.5 text-sm font-medium text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50',section===id&&'border-primary text-foreground [&_svg]:text-primary')}><Icon name={icon} size={16}/>{label}{id==='documents'&&stats.review>0&&<span className="rounded-full bg-amber-100 px-1.5 text-xs font-semibold text-amber-800 tabular-nums">{stats.review}</span>}</a>)}</nav>
     </header>
 
 {section==='overview'&&<CompanyOverview company={company} docs={docs} period={period} closed={closed} onNavigate={(target:string)=>go(`company/${company.id}/${target}`)} onOpen={showDocument} onUpload={()=>open({type:'upload'})} onFilter={(value:string)=>{nextFilter.current=value;go(`company/${company.id}/documents`)}}/>}
@@ -280,9 +280,9 @@ function App({saved,session,logout}:any){
        <ToggleGroup type="single" variant="outline" size="sm" value={filter} onValueChange={value=>setFilter(value||'all')} aria-label="Hujjat holati bo‘yicha filtr" spacing={1} className="max-w-full flex-wrap justify-start">{chips.map(([key,label,count])=><ToggleGroupItem key={key} value={String(key)} className="shrink-0 gap-1.5 px-2.5">{label}<span className="text-muted-foreground tabular-nums">{count}</span></ToggleGroupItem>)}</ToggleGroup>
        <SearchField className="w-full lg:w-64" placeholder="Hujjat nomini qidirish" aria-label="Hujjat qidirish" value={query} onChange={e=>setQuery(e.target.value)}/>
       </div>}
-      {visible.length?<div className="overflow-hidden rounded-lg border"><Table>
+      {visible.length?<div className="overflow-hidden rounded-xl border"><Table>
        <TableCaption className="sr-only">{company.name} hujjatlari</TableCaption>
-       <TableHeader className="bg-muted"><TableRow><TableHead scope="col">Hujjat</TableHead><TableHead scope="col" className="max-md:hidden">Sana</TableHead><TableHead scope="col" className="max-sm:hidden">Holat</TableHead>{showAi&&<TableHead scope="col" className="max-lg:hidden">AI tekshiruv</TableHead>}<TableHead scope="col" className="max-sm:hidden"><span className="sr-only">Amal</span></TableHead></TableRow></TableHeader>
+       <TableHeader className="bg-muted/50"><TableRow><TableHead scope="col">Hujjat</TableHead><TableHead scope="col" className="max-md:hidden">Sana</TableHead><TableHead scope="col" className="max-sm:hidden">Holat</TableHead>{showAi&&<TableHead scope="col" className="max-lg:hidden">AI tekshiruv</TableHead>}<TableHead scope="col" className="max-sm:hidden"><span className="sr-only">Amal</span></TableHead></TableRow></TableHeader>
        <TableBody>{pageDocs.map(d=><TableRow key={d.id}>
         <TableCell className="whitespace-normal"><button type="button" className="flex w-full min-w-36 items-center gap-3 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" onClick={()=>showDocument(d)}>
          {d.status==='missing'?<span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-amber-400 bg-amber-50 text-amber-700"><Icon name="clock" size={16}/></span>:<FileTile fileName={d.fileName}/>}
